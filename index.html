@@ -709,7 +709,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.28-s';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.10.28-t';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -1996,17 +1996,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const who = people[p.rm] || {};
       return { email: p.email, rm: p.rm, rmName: who.name || p.rm, branch: who.branch || NONE_B, cluster: who.cluster || NONE_C,
                subs: norm(p.subs, 's'), sales: norm(p.sales, 'a') };
-    }) };
+    }), roster: (j.roster || []).filter(r => !/^admin$/i.test(String(r.title || '').trim())) };
   }
   const inScope = () => TEAM.partners.filter(p => (!tf.cluster || p.cluster === tf.cluster) && (!tf.branch || p.branch === tf.branch) && (!tf.rm || p.rm === tf.rm));
   function fillFilters(){
     const opts = (sel, items, cur, all) => { $(sel).innerHTML = `<option value="">${all}</option>` + items.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join(''); };
-    const uniq = arr => [...new Set(arr)].sort();
-    const P = TEAM.partners;
-    opts('tfCluster', uniq(P.map(p => p.cluster)).map(c => [c, c]), tf.cluster, 'All clusters');
+    const uniq = arr => [...new Set(arr.filter(Boolean))].sort();
+    const P = TEAM.partners, R = TEAM.roster || [];
+    // Clusters, branches and RMs come from the Hierarchy roster as well as from partners, so empty ones still show
+    opts('tfCluster', uniq([...P.map(p => p.cluster), ...R.flatMap(r => r.clusters)]).map(c => [c, c]), tf.cluster, 'All clusters');
     const inC = P.filter(p => !tf.cluster || p.cluster === tf.cluster);
-    opts('tfBranch', uniq(inC.map(p => p.branch)).map(b => [b, b]), tf.branch, 'All branches');
+    const rInC = R.filter(r => !tf.cluster || r.clusters.includes(tf.cluster));
+    opts('tfBranch', uniq([...inC.map(p => p.branch), ...rInC.flatMap(r => r.branches)]).map(b => [b, b]), tf.branch, 'All branches');
     const inB = inC.filter(p => !tf.branch || p.branch === tf.branch), rms = {};
+    rInC.filter(r => !tf.branch || r.branches.includes(tf.branch)).forEach(r => rms[r.email] = r.name);
     inB.forEach(p => rms[p.rm] = p.rmName);
     opts('tfRm', Object.keys(rms).sort((a, b) => rms[a].localeCompare(rms[b])).map(r => [r, rms[r]]), tf.rm, 'All RMs');
     const title = String((window.APP_USER && APP_USER.user && APP_USER.user.title) || '');
