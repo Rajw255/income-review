@@ -902,14 +902,7 @@ function render(){
     </tr>`;
   }).join('');
 
-  const xs = [];
-  if (p.lifeOn) xs.push(`Life ${p.lifeComm}%`);
-  if (p.healthOn) xs.push(`Health ${p.healthComm}%`);
-  if (p.pmsOn) xs.push('PMS 1% (min. ₹50L)');
-  if (p.dematOn) xs.push(`Demat ₹${RATES.dematPerMonth}/active client/mo`);
-  $('footNote').innerHTML = `Illustrative projections; actual returns depend on markets and client activity. Trail ${p.trail}% p.a. · Market CAGR ${p.cagr}% · ${p.red}% of AUM redeemed each year. Mkt. gains = market growth to date (before redemptions); Total AUM = everything invested + Mkt. gains − redemptions · SIP behaviour: ${p.sipStop}% of SIPs stop each year; step-up lasts ${p.stepYears > 0 ? p.stepYears + ' years per client' : 'every year'}. Clients = all clients acquired; stopped SIPs keep their invested money. Lumpsum: each client invests once a year, in their joining month and on each anniversary, during the active years only (no step-up). Base SIP increase: each year's new clients start at a higher SIP. SIP contrib. / yr = SIP collected within that year from all live SIPs. Step-up SIP / yr = the part of it from step-ups. Avg SIP book / mo = SIP contrib. / yr ÷ 12.<br>
-    Cross-sell: ${xs.length ? xs.join(' · ') : 'none selected'}. Uplift = extra income from cross-sell and demat over trail.<br>
-    ${p.activeYears < 25 ? `<br>Greyed years come after your ${p.activeYears} active years: no new clients are added, existing SIPs continue.` : ''}`;
+  $('footNote').innerHTML = `Illustrative projections; actual returns depend on markets and client activity.${p.activeYears < 25 ? ` Greyed years come after your ${p.activeYears} active years: no new clients are added, existing SIPs continue.` : ''}`;
 
   drawCharts(rows);
   markDirty();
