@@ -334,6 +334,7 @@
   .ins-filters label.wide select{min-width:280px}
   .ins-filters label[hidden]{display:none}
   #teamNote{background:#fff7e6;border:1px solid #f0d9a8;color:#7a5200;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
+  .tf-info{font-size:11.5px;color:var(--muted);margin-left:auto;align-self:center}
   #teamNote.info{background:#eef4fb;border-color:#c5d5e8;color:var(--b700)}
   .ins-filters select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--b200);border-radius:8px;background:#fff;min-width:150px;color:var(--b900)}
   body.partner-mode #insFilters, #insChange, #insRefresh{display:none!important}
@@ -610,6 +611,7 @@
     <label>RM<select id="tfRm"></select></label>
     <label class="wide">Partner<select id="tfPartner"></select></label>
     <button class="btn btn-plain" id="tfRefresh" type="button">↻ Refresh</button>
+    <span class="tf-info" id="tfInfo"></span>
   </section>
   <div class="team-note" id="teamNote" hidden></div>
   <div id="insBody" hidden>
@@ -709,7 +711,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.28-t';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.10.28-u';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -2052,6 +2054,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       TEAM = prepTeam(j);
       $('teamNote').hidden = !legacy;
+      // Diagnostics: say clearly why some clusters/branches might be missing
+      if (!legacy){
+        const title = String((window.APP_USER && APP_USER.user && APP_USER.user.title) || '');
+        let msg = '';
+        if (!Array.isArray(j.roster)){
+          const v = await liveVersion();
+          msg = `Only clusters and branches that have partners are listed: the Apps Script at your config.js DATA link is version ${v || 'unknown'}, not ${MIN_BACKEND}. Update that exact deployment (Manage deployments → the one whose link is in config.js → Edit → New version).`;
+        } else if (/admin/i.test(title) && !j.isAdmin){
+          msg = `Your Title in the Hierarchy is "${title}". Only a Title of exactly "Admin" gives access to everything.`;
+        }
+        if (msg){ $('teamNote').hidden = false; $('teamNote').className = 'team-note'; $('teamNote').textContent = msg; }
+        else if (j.isAdmin){
+          const cl = new Set(), br = new Set(); (j.roster || []).forEach(r => { r.clusters.forEach(x => cl.add(x)); r.branches.forEach(x => br.add(x)); });
+          $('tfInfo').textContent = `From the Hierarchy tab: ${(j.roster || []).length} people · ${cl.size} clusters · ${br.size} branches`;
+        }
+      }
       if (legacy){ $('teamNote').className = 'team-note info';
         $('teamNote').textContent = 'Showing your partners. Branch and Cluster grouping will appear once the latest Code.gs (' + MIN_BACKEND + ') is deployed.'; }
       if (TEAM.partners.length === 1) tf.partner = TEAM.partners[0].email;   // only one partner: open it directly
