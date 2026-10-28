@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<!-- ===== EDGEONE FILE: the full app. Upload to EdgeOne as index.html together with config.js. ===== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wealthy · Partner Income Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<!-- Your Google Sheet link lives in config.js so updates to this page never overwrite it -->
+<script>
+  // Record whether config.js is missing or has a typing error, so the page can say exactly what's wrong.
+  window.addEventListener('error', function (e) {
+    if (e && e.filename && e.filename.indexOf('config.js') !== -1) window.__configError = e.message || 'syntax error';
+  }, true);
+</script>
+<script src="config.js?v=5" onerror="window.__configMissing = true"></script>
+<style>
+  :root{
+    /* Muted professional blues */
+    --b900:#1b2f4b; --b800:#243b5e; --b700:#2f4b75; --b600:#3a5f8f; --b500:#4f77a8;
+    --b400:#7096c2; --b300:#9bb6d6; --b200:#c5d5e8; --b100:#e3ebf5; --b50:#f3f6fb;
+    --bg:#eef2f7; --card:#ffffff; --line:#dbe3ee; --line-soft:#edf1f6;
+    --text:#13233a; --muted:#5f6f86; --green:#2e7d57; --green-soft:#e1f1e9; --red:#c0392b; --amber:#a86b12;
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-size:13px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--b500);outline-offset:2px}
+
+  /* Login */
+  #loginScreen{display:none}
+  body.locked #loginScreen{display:grid}
+  body.locked > *:not(#loginScreen):not(.toast){display:none!important}
+  .login{position:fixed;inset:0;place-items:center;background:linear-gradient(180deg,var(--b900) 0,var(--b900) 40%,var(--bg) 40%);z-index:100;padding:16px}
+  .login-card{background:#fff;border-radius:14px;padding:28px 28px 20px;width:min(400px,100%);box-shadow:0 20px 50px rgba(19,35,58,.18);text-align:center}
+  .login-brand{font-weight:600;color:var(--b900);font-size:18px}
+  .login-card h1{font-size:15px;font-weight:600;margin:6px 0 4px;color:var(--b800)}
+  .login-card p{font-size:12.5px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+  #gsiBtn{display:flex;justify-content:center;min-height:44px}
+  .login-msg{min-height:1.2em;margin-top:12px;font-size:12px;color:var(--b700);line-height:1.5}
+  .login-msg.err{color:var(--red)}
+  .login-foot{font-size:11px;color:#9aa8ba;margin-top:14px}
+  .login-go{padding:10px 18px;font-size:13.5px;gap:10px;border-radius:999px}
+  .login-tabs{display:flex;background:var(--b50);border:1px solid var(--b100);border-radius:999px;padding:3px;margin:4px auto 16px;max-width:260px}
+  .login-tabs button{flex:1;border:0;background:transparent;border-radius:999px;padding:7px 0;font:inherit;font-size:13px;font-weight:600;color:var(--b700);cursor:pointer}
+  .login-tabs button.on{background:var(--b900);color:#fff}
+  #ltPartner .inbox{margin:0 auto 12px;max-width:300px}
+  #ltPartner .inbox input{text-align:center}
+  /* Partner mode: everything read-only, no submitting or recording */
+  body.partner-mode #partnerEmail, body.partner-mode #rmEmail, body.partner-mode #remarks{background:#f4f6f9!important;color:#33445c}
+  body.partner-mode #btnSubmit, body.partner-mode #btnReset, body.partner-mode #insChange, body.partner-mode #insRefresh,
+  body.partner-mode #salesCard, body.partner-mode #dirtyNote{display:none!important}
+  body.partner-mode #btnPdf{display:inline-flex!important}
+  .partner-empty-msg{display:none}
+  body.partner-empty .layout > aside, body.partner-empty .layout > main{display:none!important}
+  body.partner-empty .partner-empty-msg{display:block;grid-column:1/-1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted);margin:20px auto;max-width:560px}
+  .partner-empty-msg b{color:var(--b900);display:block;font-size:15px;margin-bottom:6px}
+  /* Review PDF capture: full-width table, no buttons */
+  body.pdf-capture .ins .table-wrap{overflow:visible!important}
+  body.pdf-capture .ins-meta, body.pdf-capture #insView{display:none!important}
+  .user{display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--b200);margin-left:10px}
+  .user b{color:#fff;font-weight:500}
+  .user small{color:var(--b300);font-size:11px}
+  .user button{background:transparent;border:1px solid var(--b700);color:var(--b200);border-radius:6px;padding:3px 9px;font-size:11.5px;cursor:pointer}
+  .user button:hover{background:var(--b800);color:#fff}
+  .inbox input[readonly]{color:var(--muted);cursor:not-allowed}
+  @media (max-width:700px){ .user small{display:none} }
+
+  /* Top bar */
+  .topbar{background:var(--b900);color:#fff;display:flex;align-items:center;gap:14px;padding:10px 22px;position:sticky;top:0;z-index:20}
+  .brand{font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand-sub{color:var(--b300);font-size:12px;padding-left:14px;border-left:1px solid var(--b700)}
+  .spacer{flex:1}
+  .conn{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--b200);background:var(--b800);border:1px solid var(--b700);border-radius:999px;padding:4px 10px;cursor:default}
+  .conn i{width:7px;height:7px;border-radius:50%;background:var(--b400)}
+  .conn.ok i{background:#5fbf8f} .conn.bad i{background:#e0a243}
+  .conn.bad{cursor:help}
+
+  .setup-warn{display:none;background:#fff7e6;border-bottom:1px solid #f0d9a8;color:#6b4a0f;padding:8px 22px;font-size:12px}
+  .setup-warn.show{display:block}
+  .setup-warn code{background:#fbebc5;padding:1px 5px;border-radius:4px}
+
+  .btn{border:1px solid transparent;border-radius:6px;padding:6px 12px;font-weight:500;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn[hidden]{display:none}
+  .btn-primary{background:var(--b600);color:#fff}
+  .btn-primary:hover:not(:disabled){background:var(--b700)}
+  .btn-plain{background:#fff;border-color:var(--line);color:var(--b800)}
+  .btn-plain:hover:not(:disabled){background:var(--b50)}
+
+  .layout{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100vh - 48px)}
+  aside{background:#f7f9fc;border-right:1px solid var(--line);padding:14px 14px 28px}
+  main{padding:14px 18px 32px;min-width:0}
+
+  /* Sidebar */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px 6px;margin-bottom:10px}
+  .panel-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--b800);margin:0 0 4px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+  .panel-title::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--b500);margin-right:2px}
+  .panel-title span{flex:1}
+  .panel-title small{color:var(--muted);font-weight:400;font-size:11px}
+  .hint{font-size:11px;color:var(--muted);margin:2px 0 4px;line-height:1.4}
+  .field{display:grid;grid-template-columns:1fr 104px;align-items:center;gap:8px;padding:3px 0}
+  .field.stack{grid-template-columns:1fr;gap:3px}
+  .field label{font-size:12px;color:#33445c}
+  .req{color:var(--red)}
+  .inbox{position:relative;display:flex;align-items:center;background:#fff;border:1px solid #cfd9e6;border-radius:6px;height:30px;overflow:hidden}
+  .inbox:hover{border-color:var(--b300)}
+  .inbox:focus-within{border-color:var(--b500);box-shadow:0 0 0 2px rgba(79,119,168,.15)}
+  .inbox input,.inbox select{border:0;background:transparent;outline:none;width:100%;height:100%;padding:0 8px;text-align:right;font-weight:500;font-size:13px;min-width:0}
+  .inbox.text input,.inbox.text select{text-align:left;font-weight:400}
+  .inbox select{cursor:pointer}
+  .inbox.lg{height:38px}
+  .inbox.lg input{font-size:14px;font-weight:500;padding:0 10px;cursor:pointer}
+  .inbox.lg input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.7;padding:4px}
+  .inbox .pre,.inbox .suf{color:#7a8aa0;font-size:11px;padding:0 6px;flex:none}
+  .inbox .pre{padding-right:0}
+  .inbox input[type=number]::-webkit-inner-spin-button,.inbox input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .inbox input[type=number]{-moz-appearance:textfield}
+  .field.invalid .inbox{border-color:var(--red);background:#fff6f5}
+  .stepper{display:flex;flex-direction:column;align-self:stretch;flex:none;width:0;opacity:0;overflow:hidden;border-left:1px solid transparent;transition:width .12s ease,opacity .12s ease}
+  .inbox:hover .stepper,.inbox:focus-within .stepper{width:18px;opacity:1;border-left-color:var(--line)}
+  @media (hover:none){ .stepper{width:18px;opacity:1;border-left-color:var(--line)} }
+  .stepper button{flex:1;width:18px;border:0;background:var(--b50);color:var(--b600);cursor:pointer;padding:0;display:grid;place-items:center;line-height:0}
+  .stepper button:first-child{border-bottom:1px solid var(--line)}
+  .stepper button:hover{background:var(--b100)}
+  .stepper button:active{background:var(--b200)}
+  .stepper svg{width:8px;height:8px}
+
+  .xs-card{border:1px solid var(--line);border-radius:7px;margin-top:6px;overflow:hidden;background:#fff}
+  .xs-card.on{border-color:var(--b200);background:var(--b50)}
+  .xs-head{display:flex;align-items:center;gap:10px;padding:7px 9px}
+  .xs-head b{display:block;font-size:12px;font-weight:600;color:var(--b900)}
+  .xs-head small{color:var(--muted);font-size:11px}
+  .xs-head .toggle{margin-left:auto}
+  .xs-body{padding:2px 9px 7px;display:none;border-top:1px solid var(--b100)}
+  .xs-card.on .xs-body{display:block}
+  .xs-body .field{grid-template-columns:1fr 112px}
+  .xs-note{color:var(--b700);font-size:11px;margin-top:3px;line-height:1.4}
+  .xs-note i{display:block;color:var(--muted);font-style:normal}
+  .toggle{position:relative;width:32px;height:18px;flex:none}
+  .toggle input{opacity:0;width:100%;height:100%;margin:0;cursor:pointer;position:absolute;z-index:1}
+  .toggle span{position:absolute;inset:0;background:#cdd6e2;border-radius:20px;transition:background .15s}
+  .toggle span::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+  .toggle input:checked+span{background:var(--b600)}
+  .toggle input:checked+span::after{transform:translateX(14px)}
+  .toggle input:focus-visible+span{outline:2px solid var(--b500);outline-offset:2px}
+  .reg-note{font-size:11px;color:var(--muted);line-height:1.4;margin:6px 0 2px;padding:6px 8px;background:var(--b50);border-radius:6px;border:1px dashed var(--b200)}
+  .reset{background:none;border:0;color:var(--b600);cursor:pointer;padding:6px 0 0;font-weight:500;font-size:12px}
+
+  /* KPI strip */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .kpi{border-radius:8px;padding:8px 12px;color:#fff;min-width:0}
+  .kpi:nth-child(1){background:var(--b900)} .kpi:nth-child(2){background:var(--b800)}
+  .kpi:nth-child(3){background:var(--b700)} .kpi:nth-child(4){background:var(--b600)}
+  .kpi .k{font-size:11px;color:var(--b200)}
+  .kpi .v{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi .s{font-size:11px;color:var(--b200);font-weight:400;margin-left:5px}
+
+  /* Projection table */
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin:14px 0 6px}
+  .sec-head h2{margin:0;font-size:15px;font-weight:600;color:var(--b900)}
+  .sec-head span{color:var(--muted);font-size:12px}
+  .table-wrap{background:#fff;border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+  table.proj{border-collapse:separate;border-spacing:0;width:100%;min-width:980px}
+  table.proj th{background:var(--b100);color:var(--b800);font-size:10px;font-weight:600;text-align:right;padding:5px 10px;border-bottom:1px solid var(--b200);white-space:nowrap}
+  table.proj thead tr:first-child th{background:var(--b50);padding:6px 10px 3px}
+  table.proj th.grp{text-align:center;color:var(--b600);font-weight:600;font-size:10px}
+  table.proj th.grp span{display:block;border-bottom:2px solid var(--b300);padding-bottom:3px}
+  table.proj th.grp.inc span{border-bottom-color:var(--b600)}
+  table.proj th.lead{text-align:left;vertical-align:bottom;background:var(--b100)!important}
+  table.proj th.num-lead{vertical-align:bottom;background:var(--b100)!important}
+  table.proj td{padding:4px 10px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap;font-size:11.7px;color:var(--text);line-height:1.3}
+  table.proj .gs{border-left:1px solid var(--line)}
+  table.proj tbody tr:last-child td{border-bottom:0}
+  table.proj tbody tr:hover td{background:var(--b50)}
+  table.proj td.yr{text-align:left;font-weight:600;color:var(--b900);background:#fff}
+  table.proj th.lead,table.proj td.yr{position:sticky;left:0;min-width:58px;box-shadow:1px 0 0 var(--line),6px 0 8px -6px rgba(27,47,75,.25)}
+  table.proj td.yr{z-index:1}
+  table.proj th small{display:block;font-weight:400;font-size:9px;opacity:.8}
+  table.proj td.yr small{display:block;font-size:9.5px;font-weight:400;color:var(--b500);line-height:1.1}
+  table.proj th.lead{z-index:3}
+  table.proj td.strong{font-weight:600}
+  table.proj td.total{font-weight:600;color:var(--b700)}
+  table.proj td.total small{font-size:10.5px;font-weight:400;color:var(--muted);margin-left:5px}
+  table.proj td.muted{color:#a3b0c2}
+  table.proj tr.inactive td,table.proj tr.inactive td.yr,table.proj tr.inactive td.total,table.proj tr.inactive td.strong{color:#b4bfcd;font-weight:400}
+  table.proj tr.inactive td.total small{color:#c3ccd8}
+  table.proj tr.inactive .pill{background:#f1f4f8;color:#a3b0c2}
+  .pill{display:inline-block;font-weight:600;font-size:10.5px;border-radius:999px;padding:1px 7px;background:var(--green-soft);color:var(--green)}
+  .foot{color:var(--muted);font-size:11px;line-height:1.5;margin-top:6px}
+
+  /* Remarks + submit */
+  .submit-bar{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-top:8px;position:relative;transition:box-shadow .15s,border-color .15s,transform .15s}
+  .submit-bar.editing{border-color:var(--b500);box-shadow:0 10px 30px rgba(27,47,75,.16);transform:translateY(-2px);z-index:5}
+  .submit-bar label{display:flex;justify-content:space-between;font-size:12px;font-weight:500;margin-bottom:3px;color:var(--b800)}
+  .submit-bar textarea{width:100%;border:1px solid #cfd9e6;border-radius:6px;background:#fff;padding:6px 8px;font-size:13px;min-height:30px;height:30px;resize:none;line-height:1.45;overflow-y:auto;transition:height .15s}
+  .submit-bar textarea:focus{border-color:var(--b500);outline:none;box-shadow:0 0 0 2px rgba(79,119,168,.15)}
+  .counter{font-weight:400;color:var(--muted)}
+  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;align-items:center}
+  .actions .status{margin-right:auto;font-size:12px;color:var(--muted)}
+  .actions .status.ok{color:var(--green);font-weight:500}
+
+  /* Charts */
+  .charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+  .chart-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px 8px}
+  .chart-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+  .chart-head h3{margin:0;font-size:13px;font-weight:600;color:var(--b900)}
+  .chart-head p{margin:0;font-size:11px;color:var(--muted)}
+  .chart-box{position:relative;height:210px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--b700)}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--b600);color:#fff}
+
+  /* Tabs */
+  [hidden]{display:none!important}
+  .tabs{display:inline-flex;background:var(--b800);border:1px solid var(--b700);border-radius:8px;padding:2px;margin-left:14px}
+  .tabs button{border:0;background:transparent;color:var(--b200);padding:5px 14px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer}
+  .tabs button:hover{color:#fff}
+  .tabs button.on{background:#fff;color:var(--b900)}
+
+  /* Insights: partner review */
+  .ins{padding:14px 18px 32px;max-width:1320px}
+  .ins-gate{display:grid;place-items:center;min-height:62vh}
+  .gate-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px;width:min(400px,100%);box-shadow:0 6px 24px rgba(27,47,75,.06)}
+  .gate-card h2{margin:0 0 4px;font-size:15px;font-weight:600;color:var(--b900)}
+  .gate-card p{margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.5}
+  .gate-card .btn{width:100%;justify-content:center;margin-top:10px;padding:8px 12px}
+  .gate-count{font-size:11.5px!important;color:var(--muted)!important;margin:8px 0 0!important;text-align:left}
+  .gate-err{color:var(--red)!important;margin:10px 0 0!important;min-height:1em;line-height:1.6}
+  .gate-err .sug{margin-top:4px;color:var(--b700)!important;border-color:var(--b200)}
+  .ins-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .ins-head h2{margin:0;font-size:16px;font-weight:600;color:var(--b900)}
+  .ins-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .ins-meta{display:flex;gap:8px;align-items:center}
+  .ins-warn{background:var(--b50);border:1px solid var(--b200);color:var(--b800);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px}
+  .back{border:1px solid var(--line);background:#fff;color:var(--b700);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer}
+
+  /* Record actuals */
+  .entry{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .entry-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:14px 16px;background:var(--b50);border-bottom:1px solid var(--line)}
+  .entry-head h3{margin:0;font-size:14px;font-weight:600;color:var(--b900)}
+  .entry-head p{margin:3px 0 0;font-size:12px;color:var(--muted);max-width:520px}
+  .entry-meta{display:flex;gap:12px;flex-wrap:wrap}
+  .entry-meta label{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:500;color:var(--b800)}
+  .entry-meta .inbox{height:34px;min-width:150px}
+  .entry-meta .inbox.wide{min-width:240px}
+  .entry-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0}
+  .entry-block{padding:12px 16px 14px}
+  .entry-block + .entry-block{border-left:1px solid var(--line)}
+  .entry-block h4{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--b700);text-transform:none;display:flex;justify-content:space-between;align-items:baseline}
+  .entry-block h4 small{font-weight:400;color:var(--muted);font-size:11px}
+  .erow{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+  .erow:last-child{border-bottom:0}
+  .erow .lbl{font-size:12.5px;color:var(--text);font-weight:500}
+  .erow .lbl small{display:block;font-weight:400;color:var(--muted);font-size:11px;margin-top:1px}
+  .erow .ref{font-size:11px;color:var(--muted);text-align:right;line-height:1.3}
+  .erow .ref b{display:block;color:var(--b700);font-weight:600;font-size:12px}
+  .erow .inbox{height:32px}
+  .entry input::placeholder{color:#b4bfcd;font-weight:400}
+  table.xs-entry{width:100%;border-collapse:collapse}
+  table.xs-entry th{font-size:11px;font-weight:500;color:var(--muted);text-align:left;padding:0 0 6px}
+  table.xs-entry th.r{text-align:right}
+  table.xs-entry td{padding:5px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  table.xs-entry tr:last-child td{border-bottom:0}
+  table.xs-entry td.n{font-size:12.5px;font-weight:500;color:var(--text);padding-right:10px}
+  table.xs-entry td.c{width:110px;padding-right:8px}
+  table.xs-entry td.a{width:160px}
+  table.xs-entry .inbox{height:32px}
+  .na-cell{font-size:11px;color:#a3b0c2;text-align:right;padding-right:10px}
+  .entry-notes{padding:0 16px 12px}
+  .entry-notes label{font-size:12px;font-weight:500;color:var(--b800);display:block;margin-bottom:4px}
+  .entry-notes textarea{width:100%;border:1px solid #cfd9e6;border-radius:6px;padding:7px 9px;font-size:13px;min-height:46px;resize:vertical;line-height:1.45}
+  .entry-notes textarea:focus{border-color:var(--b500);outline:none;box-shadow:0 0 0 2px rgba(79,119,168,.15)}
+  .entry-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line);background:#fbfcfe}
+  .entry-foot .edit-note{font-size:11.5px;color:var(--amber)}
+  .entry-foot .btns{display:flex;gap:8px;margin-left:auto}
+
+  /* Results */
+  .ytd{background:var(--b900);color:#fff;border-radius:12px;padding:14px 18px 16px;margin-bottom:14px}
+  .ytd-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .ytd-head h3{margin:0;font-size:15px;font-weight:600}
+  .ytd-head span{font-size:12px;color:var(--b300)}
+  .ytd-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .ytd-m{background:var(--b800);border-radius:9px;padding:10px 12px}
+  .ytd-m .k{font-size:11.5px;color:var(--b200)}
+  .ytd-m .v{font-size:22px;font-weight:600;margin-top:2px;letter-spacing:-.01em}
+  .ytd-m .c{font-size:12px;color:var(--b200);margin-top:1px}
+  .ytd-m .c b{color:#fff;font-weight:600}
+  .ytd-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.15);margin-top:8px;overflow:hidden}
+  .ytd-bar i{display:block;height:100%;border-radius:3px}
+  .ytd-bar i.good{background:#6cc497} .ytd-bar i.mid{background:#e3b04b} .ytd-bar i.low{background:#e0796b}
+  @media (max-width:900px){ .ytd-grid{grid-template-columns:1fr 1fr} }
+  .summary-card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--b600);border-radius:10px;padding:12px 16px;margin-bottom:14px}
+  .summary-card h3{margin:0 0 6px;font-size:14px;font-weight:600;color:var(--b900);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .summary-card ul{margin:0;padding-left:18px}
+  .summary-card li{font-size:13px;line-height:1.55;color:#22344f;margin:2px 0}
+  .summary-card .focus{margin-top:8px;font-size:12.5px;color:var(--b800);background:var(--b50);border-radius:6px;padding:6px 10px}
+  .chip{font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px}
+  .chip.good{background:var(--green-soft);color:var(--green)} .chip.mid{background:#fdf1d6;color:#8a5800} .chip.low{background:#fde4e4;color:#a32626} .chip.na{background:var(--b100);color:var(--b700)}
+  .res-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 0 8px;flex-wrap:wrap}
+  .res-bar h2{margin:0;font-size:15px;font-weight:600;color:var(--b900)}
+  .res-bar .sub{font-size:12px;color:var(--muted)}
+  table.perf{min-width:1000px}
+  table.perf th{font-size:10.5px}
+  table.perf thead tr:first-child th{background:var(--b50)}
+  table.perf th.grp span{border-bottom-color:var(--b300)}
+  table.perf td{font-size:12px;padding:6px 10px}
+  table.perf td.yr small{display:block;font-size:10px;font-weight:400;color:var(--muted)}
+  table.perf td.dim{color:#8795a8}
+  table.perf td.l,table.perf th.l{text-align:left}
+  table.perf tfoot td{background:var(--b50);font-weight:600;border-top:2px solid var(--b200);border-bottom:0}
+  table.perf tfoot td.yr{background:var(--b50)}
+  .ach{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;min-width:86px}
+  .ach .pct{font-weight:600;min-width:38px;text-align:right}
+  .ach .mbar{width:40px;height:5px;border-radius:3px;background:var(--b100);overflow:hidden}
+  .ach .mbar i{display:block;height:100%;border-radius:3px}
+  .ach.good .pct{color:var(--green)} .ach.good .mbar i{background:#3c9a6c}
+  .ach.mid .pct{color:#8a5800} .ach.mid .mbar i{background:#d39b2a}
+  .ach.low .pct{color:#a32626} .ach.low .mbar i{background:#d0574a}
+  .ach.na .pct{color:#a3b0c2;font-weight:400}
+  .gap{font-weight:600;font-size:11.5px}
+  .gap.good{color:var(--green)} .gap.low{color:#a32626}
+  .ins-note{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+  .ins .charts{margin-top:14px}
+  .ins-filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+  .ins-filters label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--b700)}
+  .ins-filters label.wide select{min-width:280px}
+  .ins-filters label[hidden]{display:none}
+  #teamNote{background:#fff7e6;border:1px solid #f0d9a8;color:#7a5200;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
+  #teamNote.info{background:#eef4fb;border-color:#c5d5e8;color:var(--b700)}
+  .ins-filters select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--b200);border-radius:8px;background:#fff;min-width:150px;color:var(--b900)}
+  body.partner-mode #insFilters, #insChange, #insRefresh{display:none!important}
+  .ins-modes{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px;margin:0 0 14px}
+  .ins-modes button{border:0;background:transparent;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;font-weight:600;color:var(--b700);cursor:pointer}
+  .ins-modes button.on{background:var(--b900);color:#fff}
+  body.partner-mode .ins-modes, body.partner-mode #teamView{display:none!important}
+  .team-filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .team-filters label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--b700)}
+  .team-filters select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--b200);border-radius:8px;background:#fff;min-width:150px;color:var(--b900)}
+  .team-filters .seg{display:inline-flex;border:1px solid var(--b200);border-radius:8px;overflow:hidden}
+  .team-filters .seg button{border:0;background:#fff;padding:8px 12px;font:inherit;font-size:12.5px;color:var(--b700);cursor:pointer}
+  .team-filters .seg button.on{background:var(--b900);color:#fff}
+  .team-period{font-size:13px;font-weight:600;color:var(--b900);margin:12px 2px 8px}
+  .team-note{font-size:12.5px;color:var(--muted);margin:8px 2px}
+  .team-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  .tcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .tcard .k{font-size:11.5px;color:var(--muted)} .tcard .v{font-size:20px;font-weight:600;color:var(--b900);margin-top:2px} .tcard .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .team-tools{display:flex;gap:8px;align-items:center;margin:4px 0 8px;font-size:11.5px;color:var(--muted)}
+  table.team{width:100%;border-collapse:collapse;background:#fff;font-size:12.5px;min-width:1050px}
+  table.team th{background:var(--b50);color:var(--b700);font-size:11px;font-weight:600;padding:6px 8px;text-align:right;border-bottom:1px solid var(--b200);white-space:nowrap}
+  table.team th.l{text-align:left} table.team th small{display:block;font-weight:400;color:var(--muted)}
+  table.team th.gs, table.team td.gs{border-left:1px solid var(--b100)}
+  table.team td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  table.team td.name{text-align:left;white-space:normal;min-width:220px}
+  table.team td.name small{color:var(--muted);font-size:10.5px;margin-left:6px;font-weight:400}
+  table.team td.dim{color:var(--muted)} table.team td.n small{color:var(--muted)}
+  table.team td:nth-child(3), table.team td:nth-child(6), table.team td:nth-child(9), table.team td:nth-child(12){border-left:1px solid var(--b100)}
+  table.team tr.g{cursor:pointer} table.team tr.g:hover td{background:var(--b50)}
+  table.team tr.l1 td{background:#f3f6fb;font-weight:600} table.team tr.l1 td.name{padding-left:8px}
+  table.team tr.l2 td.name{padding-left:24px} table.team tr.l3 td.name{padding-left:42px}
+  table.team tr.pt td.name{padding-left:62px;color:var(--b700)} table.team tr.pt{cursor:pointer} table.team tr.pt:hover td{background:#fafbfd}
+  table.team .tw{display:inline-block;width:14px;color:var(--b500)}
+  table.team tfoot td{font-weight:600;background:var(--b50);border-top:2px solid var(--b200)}
+  table.team td.empty{text-align:center;color:var(--muted);padding:18px}
+  table.team .tag{margin-left:0}
+  @media (max-width:900px){ .team-cards{grid-template-columns:1fr 1fr} }
+  .ch-title{font-size:13.5px!important;line-height:1.35}
+  .chart-head p{margin-top:2px}
+  .sum-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .sum-head h3{margin:0}
+  .sum-verdict{font-size:13.5px;color:#22344f;margin:0 0 8px;line-height:1.6;max-width:900px}
+  table.sum-grid{border-collapse:collapse;width:100%;max-width:760px;margin:0 0 10px;font-size:12.5px}
+  table.sum-grid th{font-size:11px;font-weight:600;color:var(--b700);text-align:right;padding:5px 10px;border-bottom:1px solid var(--b200);background:var(--b50)}
+  table.sum-grid th:first-child{text-align:left}
+  table.sum-grid td{padding:6px 10px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap}
+  table.sum-grid td:first-child{text-align:left;font-weight:500;color:var(--b900)}
+  table.sum-grid td small{color:var(--muted);font-size:11px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:600;border-radius:999px;padding:1px 7px;margin-left:6px}
+  .tag.good{background:var(--green-soft);color:var(--green)} .tag.mid{background:#fdf1d6;color:#8a5800} .tag.low{background:#fde4e4;color:#a32626} .tag.high{background:#e6eefc;color:var(--b700)} .tag.na{background:#f1f4f8;color:#a3b0c2}
+  .talk h4{margin:4px 0 4px;font-size:12px;font-weight:600;color:var(--b700)}
+  @media (max-width:900px){ .entry-body{grid-template-columns:1fr} .entry-block + .entry-block{border-left:0;border-top:1px solid var(--line)} .erow{grid-template-columns:1fr 130px} .erow .ref{grid-column:1/-1;text-align:left} }
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(19,35,58,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:540px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal header{padding:16px 20px 0}
+  .modal h3{margin:0;font-size:15px;font-weight:600;color:var(--b900)}
+  .modal header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+  .modal .body{padding:12px 20px}
+  .sum{width:100%;border-collapse:collapse;font-size:12px}
+  .sum td{padding:5px 0;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  .sum td:last-child{text-align:right;font-weight:500}
+  .sum .rm{font-weight:400;text-align:left;white-space:pre-wrap;color:#33445c}
+  .confirm-check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:12px;background:var(--b50);border:1px solid var(--b100);padding:9px 11px;border-radius:7px}
+  .confirm-check input{margin-top:2px}
+  .modal footer{display:flex;justify-content:flex-end;gap:8px;padding:0 20px 16px}
+  .success{text-align:center;padding:8px 0}
+  .success .tick{width:44px;height:44px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:20px;margin:0 auto 8px}
+  .success code{background:var(--b50);padding:2px 7px;border-radius:5px;font-weight:600}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--b900);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:all .2s;z-index:60;max-width:min(560px,92vw);line-height:1.45}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:#8e2b22}
+
+  @media (max-width:1100px){ .charts{grid-template-columns:1fr} }
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr}
+    aside{border-right:0;border-bottom:1px solid var(--line)}
+    main{padding:12px 10px 32px}
+    .brand-sub{display:none}
+    .tabs{margin-left:auto}
+    .ins{padding:12px 10px 32px}
+    .kpis{grid-template-columns:1fr 1fr}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body class="locked">
+<div class="login" id="loginScreen">
+  <div class="login-card">
+    <div class="login-brand">wealthy.in</div>
+    <h1>Partner income calculator</h1>
+    <div class="login-tabs" role="tablist"><button type="button" class="on" data-lt="partner" role="tab">Partner</button><button type="button" data-lt="employee" role="tab">Employee</button></div>
+    <div id="ltPartner">
+      <p>Enter your registered email to view your projection and performance.</p>
+      <div class="inbox text lg"><input id="ptEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+      <button type="button" class="btn btn-primary login-go" id="ptGo">View my data</button>
+      <div class="login-msg" id="ptMsg"></div>
+      <div class="login-foot">View only. Contact your RM to update your projection.</div>
+    </div>
+    <div id="ltEmployee" hidden>
+      <p>Sign in with your official Google account to continue.</p>
+      <div id="gsiBtn"></div>
+      <div class="login-msg" id="loginMsg"></div>
+      <div class="login-foot">Access is limited to people listed in the Hierarchy.</div>
+    </div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">wealthy.in</div>
+  <div class="brand-sub">Partner income calculator</div>
+  <div class="tabs" role="tablist"><button type="button" class="on" data-tab="calc" role="tab">Calculator</button><button type="button" data-tab="insights" role="tab">Insights</button></div>
+  <div class="spacer"></div>
+  <span class="conn" id="conn" title="Checking the Google Sheet connection…"><i></i><span id="connText">Checking sheet…</span></span>
+  <span class="user" id="userChip" hidden><span><b id="userName"></b> <small id="userRole"></small></span><button type="button" id="signOut">Sign out</button></span>
+</div>
+<div class="setup-warn" id="setupWarn"></div>
+
+<div class="layout">
+  <div class="partner-empty-msg" id="partnerEmpty"><b>No projection found for this email yet.</b>Once your RM submits a projection for you, it will appear here.</div>
+  <aside>
+    <div class="panel">
+      <div class="panel-title"><span>Partner details</span></div>
+      <div class="field stack"><label for="partnerEmail">Partner email <span class="req">*</span></label><div class="inbox text"><input id="partnerEmail" type="email" maxlength="120" autocomplete="email" placeholder="name@example.com"></div></div>
+      <div class="field stack"><label for="rmEmail">RM email <small style="color:var(--muted)">(you)</small></label><div class="inbox text"><input id="rmEmail" type="email" maxlength="120" placeholder="rm@example.com"></div></div>
+      <div class="field stack"><label for="targetMonth">Target month</label><div class="inbox text lg"><input id="targetMonth" type="month"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Book &amp; monthly targets</span></div>
+      <p class="hint">New clients and SIP are your monthly target.</p>
+      <div class="field"><label for="startClients">Starting clients</label><div class="inbox"><input id="startClients" type="number" min="0" step="1"></div></div>
+      <div class="field"><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
+      <div class="field"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
+      <div class="field"><label for="sip">SIP / client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
+      <div class="field"><label for="sipInc" title="Each year, new clients start with a higher SIP. Year 1 joiners start at the SIP above; Year 2 joiners at SIP × (1 + this %), and so on.">Base SIP increase p.a. <small style="color:var(--muted)">(new clients)</small></label><div class="inbox"><input id="sipInc" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field"><label for="sipStep">SIP step-up p.a.</label><div class="inbox"><input id="sipStep" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field"><label for="lump">Annual lumpsum / client</label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
+      <div class="field"><label for="red">Annual redemption</label><div class="inbox"><input id="red" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field"><label for="activeYears">Active years (effort)</label><div class="inbox"><input id="activeYears" type="number" min="0" max="25" step="1"><span class="suf">yrs</span></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Assumptions</span></div>
+      <div class="field"><label for="trail">Trail rate p.a.</label><div class="inbox"><input id="trail" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field"><label for="cagr">Market CAGR p.a.</label><div class="inbox"><input id="cagr" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>SIP behaviour</span></div>
+      <div class="field"><label for="sipStop">SIPs stopping per year</label><div class="inbox"><input id="sipStop" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field"><label for="stepYears">Step-up lasts</label><div class="inbox"><input id="stepYears" type="number" min="0" max="25" step="1"><span class="suf">yrs</span></div></div>
+      <p class="hint">Step-up lasts = years each client keeps stepping up their SIP. 0 = every year.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Cross-sell income</span><small>Toggle to add</small></div>
+
+      <div class="xs-card" id="card-life">
+        <div class="xs-head"><div><b>Life insurance</b><small>Commission set by the insurer</small></div>
+          <label class="toggle"><input type="checkbox" id="lifeOn" aria-label="Include life insurance"><span></span></label></div>
+        <div class="xs-body">
+          <div class="field"><label for="lifePct">% of clients / yr</label><div class="inbox"><input id="lifePct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field"><label for="lifePrem">Avg. premium</label><div class="inbox"><span class="pre">₹</span><input id="lifePrem" type="number" min="0" step="5000"></div></div>
+          <div class="field"><label for="lifeComm">Commission (first year)</label><div class="inbox"><input id="lifeComm" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="xs-note" id="lifeNote"></div>
+        </div>
+      </div>
+
+      <div class="xs-card" id="card-health">
+        <div class="xs-head"><div><b>Health insurance</b><small>Commission set by the insurer</small></div>
+          <label class="toggle"><input type="checkbox" id="healthOn" aria-label="Include health insurance"><span></span></label></div>
+        <div class="xs-body">
+          <div class="field"><label for="healthPct">% of clients / yr</label><div class="inbox"><input id="healthPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field"><label for="healthPrem">Avg. premium</label><div class="inbox"><span class="pre">₹</span><input id="healthPrem" type="number" min="0" step="5000"></div></div>
+          <div class="field"><label for="healthComm">Commission (first year)</label><div class="inbox"><input id="healthComm" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="xs-note" id="healthNote"></div>
+        </div>
+      </div>
+
+      <div class="xs-card" id="card-pms">
+        <div class="xs-head"><div><b>PMS</b><small>1% commission</small></div>
+          <label class="toggle"><input type="checkbox" id="pmsOn" aria-label="Include PMS"><span></span></label></div>
+        <div class="xs-body">
+          <div class="field"><label for="pmsPct">% of clients / yr</label><div class="inbox"><input id="pmsPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field"><label for="pmsInv">Investment (min. ₹50L)</label><div class="inbox"><span class="pre">₹</span><input id="pmsInv" type="number" min="5000000" step="10000"></div></div>
+          <div class="xs-note" id="pmsNote"></div>
+        </div>
+      </div>
+
+      <div class="xs-card" id="card-demat">
+        <div class="xs-head"><div><b>Demat &amp; broking</b><small>₹210 / active client / month</small></div>
+          <label class="toggle"><input type="checkbox" id="dematOn" aria-label="Include demat and broking"><span></span></label></div>
+        <div class="xs-body">
+          <div class="field"><label for="dematPct">% of clients active</label><div class="inbox"><input id="dematPct" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="xs-note" id="dematNote"></div>
+        </div>
+      </div>
+
+      <div class="reg-note">Enter the first-year commission your insurer pays. Renewal commissions aren't included.</div>
+    </div>
+    <button class="reset" id="btnReset" type="button">↺ Reset to defaults</button>
+  </aside>
+
+  <main>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Target month</div><div class="v" id="gMonth"></div></div>
+      <div class="kpi"><div class="k">New clients / month</div><div class="v"><span id="gClients"></span><span class="s" id="gClientsSub"></span></div></div>
+      <div class="kpi"><div class="k">Fresh SIP book / month</div><div class="v" id="gSip"></div></div>
+      <div class="kpi"><div class="k">Income by Year 10</div><div class="v"><span id="gY10"></span><span class="s" id="gY10mo"></span></div></div>
+    </div>
+
+    <div class="sec-head"><h2>25-year income projections</h2><span>7 milestones</span></div>
+    <div class="table-wrap">
+      <table class="proj" id="projTable">
+        <thead>
+          <tr>
+            <th rowspan="2" class="lead">Year</th><th rowspan="2" class="num-lead">Clients</th>
+            <th colspan="3" class="grp gs"><span>Investments</span></th>
+            <th colspan="3" class="grp gs"><span>Portfolio</span></th>
+            <th colspan="5" class="grp gs inc"><span>Annual income</span></th>
+          </tr>
+          <tr>
+            <th class="gs">SIP contrib. / yr</th><th>Step-up SIP / yr</th><th>Lumpsum / yr</th>
+            <th class="gs">Mkt. gains</th><th>Total AUM</th><th>Avg SIP book / mo</th>
+            <th class="gs">Trail</th><th>Cross-sell</th><th>Demat</th><th>Total</th><th>Uplift</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <section class="submit-bar" id="submitBar">
+      <label for="remarks"><span>Remarks</span><span class="counter"><span id="remCount">0</span> / 1500</span></label>
+      <textarea id="remarks" maxlength="1500" placeholder="Feedback, support needed, client objections…"></textarea>
+      <div class="actions">
+        <span class="status" id="submitStatus">Saved to the review sheet only when you submit and confirm.</span>
+        <button class="btn btn-plain" id="btnCsv" type="button" hidden>⬇ Download CSV</button>
+        <button class="btn btn-plain" id="btnPdf" type="button" hidden>⬇ Download PDF</button>
+        <button class="btn btn-primary" id="btnSubmit" type="button">Submit this scenario</button>
+      </div>
+    </section>
+    <div class="foot" id="footNote"></div>
+
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-head"><div><h3>Annual income build-up</h3><p>By source, Years 1–25</p></div></div>
+        <div class="chart-box"><canvas id="chIncome" role="img" aria-label="Annual income by source over 25 years"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div><h3>AUM growth</h3><p>Money invested vs market value</p></div></div>
+        <div class="chart-box"><canvas id="chAum" role="img" aria-label="Invested amount versus market value over 25 years"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div><h3>Income mix</h3><p>Share of annual income by source</p></div>
+          <div class="seg" id="mixSeg"><button type="button" data-y="5">Y5</button><button type="button" data-y="10" class="on">Y10</button><button type="button" data-y="25">Y25</button></div></div>
+        <div class="chart-box"><canvas id="chMix" role="img" aria-label="Income mix"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div><h3>Clients &amp; SIP book</h3><p>Client count and monthly SIP run-rate</p></div></div>
+        <div class="chart-box"><canvas id="chBook" role="img" aria-label="Clients and monthly SIP book over 25 years"></canvas></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="insightsView" class="ins" hidden>
+  <section class="ins-filters" id="insFilters">
+    <label>Cluster<select id="tfCluster"></select></label>
+    <label>Branch<select id="tfBranch"></select></label>
+    <label>RM<select id="tfRm"></select></label>
+    <label class="wide">Partner<select id="tfPartner"></select></label>
+    <button class="btn btn-plain" id="tfRefresh" type="button">↻ Refresh</button>
+  </section>
+  <div class="team-note" id="teamNote" hidden></div>
+  <div id="insBody" hidden>
+    <div class="ins-head">
+      <div><h2 id="insPartner"></h2><div class="sub" id="insPartnerSub"></div></div>
+      <div class="ins-meta"><button class="btn btn-primary" id="insPdf" type="button">⬇ Download review PDF</button><button class="btn btn-plain" id="insChange" type="button">Change partner</button><button class="btn btn-plain" id="insRefresh" type="button">↻ Refresh</button></div>
+    </div>
+    <div class="ins-warn" id="insWarn" hidden></div>
+
+    <!-- Record actuals (RM) -->
+    <section class="entry" id="salesCard">
+      <div class="entry-head">
+        <div><h3>Record actuals</h3><p>Enter what the partner actually achieved in the month. One entry per month: saving a month again replaces the earlier entry.</p></div>
+        <div class="entry-meta">
+          <label>Month<div class="inbox text"><input id="sMonth" type="month"></div></label>
+          <label>RM email<div class="inbox text wide"><input id="sRm" type="email" placeholder="rm@example.com"></div></label>
+        </div>
+      </div>
+      <div class="entry-body">
+        <div class="entry-block">
+          <h4>Mutual fund business</h4>
+          <div class="erow"><div class="lbl">New clients<small>Clients onboarded this month</small></div><div class="inbox"><input id="sNew" type="number" min="0" step="1" placeholder="0"></div></div>
+          <div class="erow"><div class="lbl">SIP book<small>Total monthly SIP of all live SIPs</small></div><div class="inbox"><span class="pre">₹</span><input id="sSip" type="number" min="0" step="1000" placeholder="0"><span class="suf">/mo</span></div></div>
+          <div class="erow"><div class="lbl">MF net sales<small>Purchases − redemptions, mutual funds only</small></div><div class="inbox"><span class="pre">₹</span><input id="sNet" type="number" step="1000" placeholder="0"></div></div>
+        </div>
+        <div class="entry-block">
+          <h4>Cross-sell</h4>
+          <table class="xs-entry">
+            <thead><tr><th></th><th class="r">Count</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+              <tr><td class="n">Life insurance</td><td class="c"><div class="inbox"><input id="sLifeN" type="number" min="0" step="1" placeholder="0"></div></td><td class="a"><div class="inbox"><span class="pre">₹</span><input id="sLifeP" type="number" min="0" step="1000" placeholder="Premium"></div></td></tr>
+              <tr><td class="n">Health insurance</td><td class="c"><div class="inbox"><input id="sHealthN" type="number" min="0" step="1" placeholder="0"></div></td><td class="a"><div class="inbox"><span class="pre">₹</span><input id="sHealthP" type="number" min="0" step="1000" placeholder="Premium"></div></td></tr>
+              <tr><td class="n">PMS</td><td class="c"><div class="inbox"><input id="sPmsN" type="number" min="0" step="1" placeholder="0"></div></td><td class="a"><div class="inbox"><span class="pre">₹</span><input id="sPmsA" type="number" min="0" step="10000" placeholder="Invested"></div></td></tr>
+              <tr><td class="n">Demat accounts</td><td class="c"><div class="inbox"><input id="sDemat" type="number" min="0" step="1" placeholder="0"></div></td><td class="na-cell">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="entry-foot">
+        <span class="edit-note" id="salesEditNote"></span>
+        <div class="btns"><button class="btn btn-plain" id="salesSkip" type="button">View review without saving</button><button class="btn btn-primary" id="salesSubmit" type="button">Save actuals</button></div>
+      </div>
+    </section>
+
+    <!-- Commitment vs actual -->
+    <div id="insResult" hidden>
+      <section class="ytd" id="insYtd"></section>
+      <section class="summary-card" id="insSummary"></section>
+      <div class="res-bar">
+        <div><h2>Commitment vs actual</h2><div class="sub" id="insViewSub"></div></div>
+        <div class="seg" id="insView"><button type="button" data-v="m" class="on">Monthly</button><button type="button" data-v="q">Quarterly</button></div>
+      </div>
+      <div class="table-wrap"><table class="proj perf" id="insTable"></table></div>
+      <p class="ins-note">Commitment for a month comes from the partner's projection for that month, or is carried forward from their latest earlier projection (up to 12 months). Quarters follow the financial year (Q1 = Apr–Jun). In a quarter, SIP book is the last recorded month; other figures are totals.</p>
+      <div class="charts">
+        <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC1T"></h3><p id="insC1S"></p></div></div><div class="chart-box"><canvas id="insC1" role="img" aria-label="New clients actual versus committed"></canvas></div></div>
+        <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC2T"></h3><p id="insC2S"></p></div></div><div class="chart-box"><canvas id="insC2" role="img" aria-label="Cumulative new clients"></canvas></div></div>
+        <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC3T"></h3><p id="insC3S"></p></div></div><div class="chart-box"><canvas id="insC3" role="img" aria-label="SIP book actual versus projected"></canvas></div></div>
+        <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC4T"></h3><p id="insC4S"></p></div></div><div class="chart-box"><canvas id="insC4" role="img" aria-label="MF net sales actual versus projected"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div id="modalReview">
+      <header><h3 id="modalTitle">Submit this scenario</h3><p>Once submitted, this entry is saved to the review sheet and can't be edited from here.</p></header>
+      <div class="body">
+        <table class="sum" id="sumTable"></table>
+        <label class="confirm-check"><input type="checkbox" id="confirmChk"> <span>I confirm these are my final targets and remarks.</span></label>
+      </div>
+      <footer>
+        <button class="btn btn-plain" id="btnCancel" type="button">Go back and edit</button>
+        <button class="btn btn-primary" id="btnConfirm" type="button" disabled>Confirm &amp; submit</button>
+      </footer>
+    </div>
+    <div id="modalDone" hidden>
+      <div class="body success">
+        <div class="tick">✓</div>
+        <h3>Scenario saved</h3>
+        <p>Reference <code id="doneId"></code></p>
+        <p style="color:var(--muted);font-size:12px" id="doneTime"></p>
+      </div>
+      <footer>
+        <button class="btn btn-plain" id="btnDoneClose" type="button">Close</button>
+        <button class="btn btn-plain" id="btnDoneCsv" type="button">⬇ Download CSV</button>
+        <button class="btn btn-primary" id="btnDonePdf" type="button">⬇ Download PDF</button>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================== CONFIG ==================
+   The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
+   When this page is served from Apps Script itself, no link is needed. */
+const MIN_BACKEND = '2026.10.28-s';   // Code.gs version this page needs
+const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
+/* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
+   and the backend can verify it. Returning null means "no login" — today's behaviour. */
+// Named differently from window.getAuthToken: a page-level function with the same
+// name would replace it and call itself forever.
+async function resolveAuthToken(){
+  const fn = window.getAuthToken;
+  return (typeof fn === 'function' && fn !== resolveAuthToken) ? fn() : null;
+}
+const ON_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
+
+const MILESTONES = [1,3,5,10,15,20,25];
+const FOCUS_YEAR = 10;
+const RATES = { pms:0.01, dematPerMonth:210, pmsMin:5000000 };
+
+
+const DEFAULTS = {
+  startClients:0, startAum:0, newClients:0, sip:0, sipInc:0, sipStep:0, lump:0, red:0, activeYears:25,
+  trail:0, cagr:0,
+  lifeOn:false, lifePct:0, lifePrem:0, lifeComm:0,
+  healthOn:false, healthPct:0, healthPrem:0, healthComm:0,
+  pmsOn:false, pmsPct:0, pmsInv:5000000,                                 // PMS minimum ₹50 lakh
+  dematOn:false, dematPct:0,
+  sipStop:0, stepYears:0                                                 // 0 years = step-up every year
+};
+const $ = id => document.getElementById(id);
+const PAL = { b900:'#1b2f4b', b800:'#243b5e', b700:'#2f4b75', b600:'#3a5f8f', b500:'#4f77a8', b400:'#7096c2', b300:'#9bb6d6', b200:'#c5d5e8', b100:'#e3ebf5' };
+
+/* ---------- formatting ---------- */
+function inr(v){
+  const a = Math.abs(v);
+  if (a >= 1e7) return '₹' + (v/1e7).toFixed(2) + ' Cr';   // crore: 2 decimals (₹2.95 Cr)
+  if (a >= 1e5) return '₹' + (v/1e5).toFixed(1) + 'L';
+  if (a >= 1e3) return '₹' + (v/1e3).toFixed(1) + 'K';
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
+function inrShort(v){
+  const a = Math.abs(v);
+  if (a >= 1e7) return '₹' + (+(v/1e7).toFixed(1)) + 'Cr';
+  if (a >= 1e5) return '₹' + (+(v/1e5).toFixed(1)) + 'L';
+  if (a >= 1e3) return '₹' + (+(v/1e3).toFixed(0)) + 'K';
+  return '₹' + Math.round(v);
+}
+const n0 = v => Math.round(v).toLocaleString('en-IN');
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function istNow(){
+  return new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}) + ' IST';
+}
+function istMonthValue(){
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+  return p.find(x=>x.type==='year').value + '-' + p.find(x=>x.type==='month').value;
+}
+function monthShort(v){
+  if (!/^\d{4}-\d{2}$/.test(v||'')) return 'Month 1';
+  const [y,m] = v.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleString('en-IN',{month:'short'}) + " '" + String(y).slice(2);
+}
+function monthLabel(v){
+  if (!/^\d{4}-\d{2}$/.test(v||'')) return '—';
+  const [y,m] = v.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+}
+
+
+/* ---------- inputs ---------- */
+function readParams(){
+  const p = {};
+  for (const k in DEFAULTS){
+    const el = $(k), d = DEFAULTS[k];
+    if (typeof d === 'boolean') p[k] = el.checked;
+    else if (typeof d === 'string') p[k] = el.value;
+    else { const v = parseFloat(el.value); p[k] = isFinite(v) && v > 0 ? v : 0; }
+  }
+  p.activeYears = Math.min(p.activeYears, 25);
+  p.dematPct = Math.min(p.dematPct, 100);
+  p.lifeComm = Math.min(p.lifeComm, 100);
+  p.healthComm = Math.min(p.healthComm, 100);
+  p.pmsInv = Math.max(p.pmsInv, RATES.pmsMin);
+  p.sipStop = Math.min(p.sipStop, 100);
+  p.stepYears = Math.min(p.stepYears, 25);
+  return p;
+}
+function applyDefaults(){
+  for (const k in DEFAULTS){
+    const el = $(k);
+    if (typeof DEFAULTS[k] === 'boolean') el.checked = DEFAULTS[k]; else el.value = DEFAULTS[k];
+  }
+}
+function readPartner(){
+  return { partnerEmail: $('partnerEmail').value.trim().toLowerCase(), rmEmail: $('rmEmail').value.trim().toLowerCase(), targetMonth: $('targetMonth').value };
+}
+
+/* ---------- projection engine (monthly simulation) ---------- */
+function compute(p){
+  // Market growth and redemptions are applied separately each month:
+  // the book grows at the full CAGR, then the redemption % of it is withdrawn.
+  const gRate = Math.pow(1 + p.cagr/100, 1/12) - 1;                      // e.g. 12% a year → 0.949% a month
+  const rRate = 1 - Math.pow(1 - Math.min(p.red, 100)/100, 1/12);        // e.g. 10% a year → 0.874% a month
+  const trailMo = p.trail/100/12;
+  const stepF = Array.from({length:26}, (_, k) => Math.pow(1 + p.sipStep/100, k));
+  // Each monthly batch of clients is a cohort: { start month, live SIPs }.
+  // Step-up runs on each client's own anniversary, for p.stepYears years (0 = every year).
+  // A share of live SIPs stops every month (p.sipStop % a year). Stopped clients stay clients; only their SIP ends.
+  const mStop = 1 - Math.pow(1 - p.sipStop/100, 1/12);
+  const stepLimit = p.stepYears > 0 ? p.stepYears : 25;
+  // Each cohort keeps its own base SIP: starting clients and Year-1 joiners at p.sip,
+  // later joiners at p.sip × (1 + base SIP increase)^(joining year − 1).
+  const cohorts = [];
+  if (p.startClients > 0) cohorts.push({ s:1, n:p.startClients, total:p.startClients, base:p.sip });
+  let aum = p.startAum*1e7, clients = p.startClients, sipBase = 0, stepup = 0, lumpCum = 0, gains = 0, monthSip = 0, liveSips = 0, month = null;
+  const months = [];   // first 12 months: clients, SIP book, net sales
+  const rows = [];
+  for (let y = 1; y <= 25; y++){
+    let trailYr = 0, sipYr = 0, stepYr = 0, sipFirst = 0, liveFirst = 0, lumpYr = 0;
+    for (let m = 1; m <= 12; m++){
+      const t = (y-1)*12 + m;
+      // SIPs stop from the month after joining (a cohort pays its first SIP in full)
+      if (mStop > 0) cohorts.forEach(c => { if (c.s < t) c.n *= (1 - mStop); });
+      if (y <= p.activeYears && p.newClients > 0){ clients += p.newClients; cohorts.push({ s:t, n:p.newClients, total:p.newClients, base: p.sip * Math.pow(1 + p.sipInc/100, y - 1) }); }
+      monthSip = 0; liveSips = 0; let base = 0;
+      for (const c of cohorts){ monthSip += c.n * c.base * stepF[Math.min(Math.floor((t - c.s)/12), stepLimit)]; liveSips += c.n; base += c.n * c.base; }
+      // Annual lumpsum: each client invests once a year, in the month they join and on every anniversary.
+      // Clients whose SIP stopped still invest their lumpsum.
+      let lumpM = 0;
+      // Lumpsum comes in only during the active years.
+      if (p.lump > 0 && y <= p.activeYears) for (const c of cohorts){ if ((t - c.s) % 12 === 0) lumpM += c.total * p.lump; }
+      aum += monthSip + lumpM; lumpYr += lumpM; lumpCum += lumpM;
+      sipBase += base; stepup += monthSip - base; sipYr += monthSip; stepYr += monthSip - base;
+      if (m === 1){ sipFirst = monthSip; liveFirst = liveSips; }
+      const g = aum * gRate; aum += g; gains += g;                // Mkt. gains: market growth only
+      const redemption = aum * rRate; aum -= redemption;         // money clients withdraw
+      trailYr += aum * trailMo;
+      if (y === 1) months.push({ clients, sipBook: monthSip, lumpsum: lumpM, netSales: monthSip + lumpM - redemption, redemption });
+      if (t === 1) month = { clients, liveSips, sipBase: base, stepup: monthSip - base, sipYr: monthSip, lumpYr: lumpM, gains: g, aum, sipBook: monthSip,
+        trail: aum * trailMo, demat: p.dematOn ? Math.round(clients*p.dematPct/100) * RATES.dematPerMonth : 0 };
+    }
+    const life   = p.lifeOn   ? Math.floor(clients*p.lifePct/100)   * p.lifePrem   * p.lifeComm/100 : 0;
+    const health = p.healthOn ? Math.floor(clients*p.healthPct/100) * p.healthPrem * p.healthComm/100 : 0;
+    const pms    = p.pmsOn    ? Math.floor(clients*p.pmsPct/100)    * Math.max(p.pmsInv, RATES.pmsMin) * RATES.pms : 0;
+    const demat  = p.dematOn  ? Math.round(clients*p.dematPct/100)  * RATES.dematPerMonth * 12 : 0;
+    const cross = life + health + pms, total = trailYr + cross + demat;
+    rows.push({ year:y, clients, liveSips, liveFirst, sipBase, stepup, sipYr, stepYr, sipFirst, lumpYr, gains, aum, sipBook: sipYr / 12, sipBookEnd: monthSip,
+      trail:trailYr, life, health, pms, cross, demat, total,
+      invested: p.startAum*1e7 + sipBase + stepup + lumpCum,
+      uplift: trailYr > 0 ? (total - trailYr)/trailYr*100 : 0 });
+  }
+  // Target-month row. Cross-sell is booked yearly in the model, so the month shows 1/12 of Year 1.
+  month.cross = rows[0].cross / 12;
+  month.total = month.trail + month.cross + month.demat;
+  month.uplift = month.trail > 0 ? (month.total - month.trail) / month.trail * 100 : 0;
+  rows.month = month;
+  rows.months = months;
+  rows.netSales12 = months.reduce((s, m) => s + m.netSales, 0);
+  return rows;
+}
+
+/* ---------- render ---------- */
+let charts = {}, lastRows = [], mixYear = 10;
+
+function render(){
+  const p = readParams(), partner = readPartner();
+  const rows = compute(p); lastRows = rows;
+  const at = y => rows[y-1], f = at(FOCUS_YEAR);
+
+  $('gMonth').textContent = monthLabel(partner.targetMonth);
+  $('gClients').textContent = n0(p.newClients);
+  $('gClientsSub').textContent = `${n0(p.newClients*12)}/yr`;
+  $('gSip').textContent = inr(p.newClients * p.sip);
+  $('gY10').textContent = inr(f.total) + '/yr';
+  $('gY10mo').textContent = inr(f.total/12) + '/mo';
+
+  $('lifeNote').innerHTML = `${inr(p.lifePrem*p.lifeComm/100)} per policy · ${p.lifePct}% of clients/yr<i>${p.lifeComm}% commission on ${inr(p.lifePrem)} premium</i>`;
+  $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per policy · ${p.healthPct}% of clients/yr<i>${p.healthComm}% commission on ${inr(p.healthPrem)} premium</i>`;
+  $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*RATES.pms)} per client · ${p.pmsPct}% of clients/yr<i>Min. ₹50L per client</i>`;
+  $('dematNote').innerHTML = `${inr(RATES.dematPerMonth*12)} per active client / yr<i>${p.dematPct}% of clients trade actively</i>`;
+  ['life','health','pms','demat'].forEach(k => $('card-'+k).classList.toggle('on', p[k+'On']));
+
+  const cell = (v, cls='', plus=false) => v > 0 ? `<td class="${cls}">${plus?'+':''}${inr(v)}</td>` : `<td class="${cls} muted">—</td>`;
+  $('projTable').querySelector('tbody').innerHTML = MILESTONES.map(y => {
+    const r = at(y);
+    return `<tr class="${y > p.activeYears ? 'inactive' : ''}" ${y > p.activeYears ? 'title="After your active years: no new clients are added"' : ''}>
+      <td class="yr">${y}</td><td>${n0(r.clients)}</td>
+      ${cell(r.sipYr,'gs')}${cell(r.stepYr)}${cell(r.lumpYr)}
+      ${cell(r.gains,'gs')}${cell(r.aum,'strong')}${cell(r.sipBook)}
+      ${cell(r.trail,'gs')}${cell(r.cross,'',true)}${cell(r.demat,'',true)}
+      <td class="total">${inr(r.total)}<small>${inr(r.total/12)}/mo</small></td>
+      <td>${r.uplift>0?`<span class="pill">+${Math.round(r.uplift)}%</span>`:'<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const xs = [];
+  if (p.lifeOn) xs.push(`Life ${p.lifeComm}%`);
+  if (p.healthOn) xs.push(`Health ${p.healthComm}%`);
+  if (p.pmsOn) xs.push('PMS 1% (min. ₹50L)');
+  if (p.dematOn) xs.push(`Demat ₹${RATES.dematPerMonth}/active client/mo`);
+  $('footNote').innerHTML = `Illustrative projections; actual returns depend on markets and client activity. Trail ${p.trail}% p.a. · Market CAGR ${p.cagr}% · ${p.red}% of AUM redeemed each year. Mkt. gains = market growth to date (before redemptions); Total AUM = everything invested + Mkt. gains − redemptions · SIP behaviour: ${p.sipStop}% of SIPs stop each year; step-up lasts ${p.stepYears > 0 ? p.stepYears + ' years per client' : 'every year'}. Clients = all clients acquired; stopped SIPs keep their invested money. Lumpsum: each client invests once a year, in their joining month and on each anniversary, during the active years only (no step-up). Base SIP increase: each year's new clients start at a higher SIP. SIP contrib. / yr = SIP collected within that year from all live SIPs. Step-up SIP / yr = the part of it from step-ups. Avg SIP book / mo = SIP contrib. / yr ÷ 12.<br>
+    Cross-sell: ${xs.length ? xs.join(' · ') : 'none selected'}. Uplift = extra income from cross-sell and demat over trail.<br>
+    ${p.activeYears < 25 ? `<br>Greyed years come after your ${p.activeYears} active years: no new clients are added, existing SIPs continue.` : ''}`;
+
+  drawCharts(rows);
+  markDirty();
+}
+
+/* ---------- charts ---------- */
+if (typeof Chart !== 'undefined'){
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = '#5f6f86';
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.pointStyle = 'rectRounded';
+  Chart.defaults.plugins.legend.labels.boxWidth = 8;
+  Chart.defaults.plugins.legend.labels.boxHeight = 8;
+  Chart.defaults.plugins.tooltip.backgroundColor = '#1b2f4b';
+  Chart.defaults.plugins.tooltip.padding = 8;
+  Chart.defaults.plugins.tooltip.cornerRadius = 6;
+}
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; };
+const centerText = {
+  id:'centerText',
+  afterDraw(chart, _a, opts){
+    if (!opts || !opts.title) return;
+    const { ctx, chartArea:{ left, right, top, bottom } } = chart;
+    const meta = chart.getDatasetMeta(0); if (!meta.data.length) return;
+    const { x, y } = meta.data[0];
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#5f6f86'; ctx.font = '400 11px Inter, sans-serif'; ctx.fillText(opts.sub, x, y - 10);
+    ctx.fillStyle = '#1b2f4b'; ctx.font = '600 15px Inter, sans-serif'; ctx.fillText(opts.title, x, y + 8);
+    ctx.restore();
+  }
+};
+function lineOpts(yFmt, extra = {}){
+  return {
+    responsive:true, maintainAspectRatio:false, animation:{ duration:250 },
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${yFmt(c.parsed.y)}` } } },
+    scales:{
+      x:{ grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:9, maxRotation:0 } },
+      y:{ grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ callback: v => inrShort(v), maxTicksLimit:5 }, beginAtZero:true }
+    },
+    elements:{ point:{ radius:0, hoverRadius:3 }, line:{ tension:.3, borderWidth:2 } },
+    ...extra
+  };
+}
+function drawCharts(rows){
+  if (typeof Chart === 'undefined') return;
+  const labels = rows.map(r => 'Y' + r.year);
+
+  // 1. Income build-up (stacked area)
+  const incomeSets = [
+    ['MF trail', rows.map(r=>r.trail), PAL.b700],
+    ['Insurance', rows.map(r=>r.life + r.health), PAL.b500],
+    ['PMS', rows.map(r=>r.pms), PAL.b300],
+    ['Demat', rows.map(r=>r.demat), PAL.b200]
+  ].map(([label, data, c], i) => ({ label, data, borderColor:c, backgroundColor:rgba(c, .85), fill: i === 0 ? 'origin' : '-1', borderWidth:1, stack:'inc' }));
+  upsert('income', 'chIncome', 'line', labels, incomeSets, lineOpts(inr, {
+    scales:{ x:{ grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:9, maxRotation:0 } },
+             y:{ stacked:true, grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ callback: v => inrShort(v), maxTicksLimit:5 } } } }));
+
+  // 2. AUM: invested vs market value
+  upsert('aum', 'chAum', 'line', labels, [
+    { label:'Market value', data: rows.map(r=>r.aum), borderColor:PAL.b700, backgroundColor:rgba(PAL.b500, .14), fill:'origin' },
+    { label:'Amount invested', data: rows.map(r=>r.invested), borderColor:PAL.b400, borderDash:[5,4], fill:false }
+  ], lineOpts(inr));
+
+  // 3. Income mix (doughnut, selectable year)
+  const r = rows[mixYear-1];
+  const parts = [['Trail', r.trail, PAL.b700], ['Life', r.life, PAL.b500], ['Health', r.health, PAL.b400], ['PMS', r.pms, PAL.b300], ['Demat', r.demat, PAL.b200]];
+  const mixSet = [{ data: parts.map(x=>x[1]), backgroundColor: parts.map(x=>x[2]), borderColor:'#fff', borderWidth:2, hoverOffset:4 }];
+  upsert('mix', 'chMix', 'doughnut', parts.map(x=>x[0]), mixSet, {
+    responsive:true, maintainAspectRatio:false, animation:{ duration:250 }, cutout:'68%',
+    plugins:{
+      legend:{ position:'right', labels:{ generateLabels: ch => ch.data.labels.map((l, i) => {
+        const v = ch.data.datasets[0].data[i], t = ch.data.datasets[0].data.reduce((a,b)=>a+b,0) || 1;
+        return { text:`${l}  ${(v/t*100).toFixed(0)}%`, fillStyle: ch.data.datasets[0].backgroundColor[i], strokeStyle:'transparent', pointStyle:'rectRounded', index:i, hidden:false };
+      }), filter: (item, data) => data.datasets[0].data[item.index] > 0 } },
+      tooltip:{ callbacks:{ label: c => ` ${c.label}: ${inr(c.parsed)}` } },
+      centerText:{ title: inr(r.total), sub: `Year ${mixYear} income` }
+    }
+  }, [centerText]);
+
+  // 4. Clients & SIP book (bar + line, two axes)
+  upsert('book', 'chBook', 'bar', labels, [
+    { type:'line', label:'Avg SIP book / month', data: rows.map(r=>r.sipBook), borderColor:PAL.b700, backgroundColor:PAL.b700, yAxisID:'y1', tension:.3, borderWidth:2, pointRadius:0, order:0 },
+    { type:'bar', label:'Clients', data: rows.map(r=>r.clients), backgroundColor:PAL.b200, hoverBackgroundColor:PAL.b300, borderRadius:2, yAxisID:'y', order:1 }
+  ], {
+    responsive:true, maintainAspectRatio:false, animation:{ duration:250 }, interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => c.dataset.yAxisID === 'y1' ? ` SIP book: ${inr(c.parsed.y)}/mo` : ` Clients: ${n0(c.parsed.y)}` } } },
+    scales:{
+      x:{ grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:9, maxRotation:0 } },
+      y:{ position:'left', grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => n0(v) }, beginAtZero:true },
+      y1:{ position:'right', grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => inrShort(v) }, beginAtZero:true }
+    }
+  });
+}
+const chartConfigs = {};
+function upsert(key, id, type, labels, datasets, options, plugins = []){
+  chartConfigs[key] = { type, labels, datasets, options, plugins };
+  const c = charts[key];
+  if (c){ c.data.labels = labels; c.data.datasets = datasets; c.options = options; c.update(); return; }
+  charts[key] = new Chart($(id), { type, data:{ labels, datasets }, options, plugins });
+}
+
+/* Draws a chart off-screen at a fixed size and 3x resolution for a sharp PDF. */
+function chartImage(key, w, h){
+  const cfg = chartConfigs[key];
+  if (!cfg || typeof Chart === 'undefined') return '';
+  const holder = document.createElement('div');
+  holder.style.cssText = `position:fixed;left:-20000px;top:0;width:${w}px;height:${h}px`;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  holder.appendChild(cv); document.body.appendChild(holder);
+  let url = '';
+  try{
+    const ch = new Chart(cv, {
+      type: cfg.type,
+      data: { labels: [...cfg.labels], datasets: cfg.datasets.map(d => ({ ...d, data: [...d.data] })) },
+      options: { ...cfg.options, responsive:false, maintainAspectRatio:false, animation:false, devicePixelRatio:3 },
+      plugins: cfg.plugins
+    });
+    url = ch.toBase64Image('image/png', 1);
+    ch.destroy();
+  } finally { holder.remove(); }
+  return url;
+}
+
+/* ---------- submission record: inputs only ---------- */
+function buildRecord(){
+  const p = readParams(), partner = readPartner(), proj = compute(p);
+  return {
+    ...partner,
+    startClients:p.startClients, startAumCr:p.startAum, newClientsPerMonth:p.newClients, sipPerClient:p.sip,
+    sipStepUpPct:p.sipStep, baseSipIncPct:p.sipInc, lumpsumPerClient:p.lump, redemptionPct:p.red,
+    activeYears:p.activeYears, trailRatePct:p.trail, cagrPct:p.cagr,
+    lifeOn:p.lifeOn, lifePct:p.lifePct, lifePremium:p.lifePrem, lifeCommissionPct:p.lifeComm,
+    healthOn:p.healthOn, healthPct:p.healthPct, healthPremium:p.healthPrem, healthCommissionPct:p.healthComm,
+    pmsOn:p.pmsOn, pmsPct:p.pmsPct, pmsInvestment:p.pmsInv,
+    sipStopPct:p.sipStop, stepUpYears:p.stepYears,
+    dematOn:p.dematOn, dematPct:p.dematPct,
+    projNetSalesMonth: Math.round(proj.months[0].netSales), projNetSales12m: Math.round(proj.netSales12),
+    projSipBookMonth: Math.round(proj.months[0].sipBook), projSipBook12m: Math.round(proj.months[11].sipBook),
+    remarks: $('remarks').value.trim(),
+    clientTimeIST: istNow(), source: location.hostname || 'apps-script'
+  };
+}
+const fingerprint = r => { const { clientTimeIST, ...rest } = r; return JSON.stringify(rest); };
+let submittedPrint = null, lastSubmission = null, pendingRecord = null;
+function markDirty(){
+  const b = $('btnSubmit');
+  if (submittedPrint && submittedPrint === fingerprint(buildRecord())){
+    b.disabled = true; b.textContent = 'Submitted ✓'; $('btnPdf').hidden = false; $('btnCsv').hidden = false;
+  } else {
+    b.disabled = false; b.textContent = 'Submit this scenario'; $('btnPdf').hidden = true; $('btnCsv').hidden = true;
+    if (submittedPrint){ $('submitStatus').textContent = 'You changed something after submitting. Submit again to save a new entry.'; $('submitStatus').className = 'status'; }
+  }
+}
+
+/* ---------- validation ---------- */
+function validate(){
+  let firstBad = null;
+  const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+  const setBad = (id, bad) => { $(id).closest('.field').classList.toggle('invalid', bad); if (bad && !firstBad) firstBad = $(id); };
+  setBad('partnerEmail', !emailOk($('partnerEmail').value));
+  setBad('rmEmail', !emailOk($('rmEmail').value));
+  setBad('targetMonth', !$('targetMonth').value);
+  if (firstBad){
+    firstBad.scrollIntoView({ behavior:'smooth', block:'center' }); firstBad.focus({ preventScroll:true });
+    toast('Enter valid partner and RM emails and a target month before submitting.', true);
+    return false;
+  }
+  return true;
+}
+
+/* ---------- Google Sheet connection ---------- */
+const ENDPOINT_OK = /^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec$/.test(SHEETS_ENDPOINT);
+function setConn(state, text, tip){
+  const c = $('conn'); c.className = 'conn ' + state; $('connText').textContent = text; c.title = tip || text;
+}
+function showSetupWarning(html){ const w = $('setupWarn'); w.innerHTML = html; w.classList.add('show'); }
+/* Feature check: a current backend answers a partner lookup with "not found";
+   an old one treats it as a calculator submission and says "A valid partner email is required." */
+async function probeBackend(){
+  try{
+    const r = await fetch(SHEETS_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'partner', email:'connection.check@example.com' }) });
+    const j = JSON.parse(await r.text());
+    if (j.ok || j.notFound) return 'ok';
+    return /valid partner email/i.test(j.error || '') ? 'old' : 'ok';
+  } catch(_){ return 'unknown'; }
+}
+async function checkConnection(){
+  if (ON_APPS_SCRIPT){ setConn('ok', 'Sheet connected'); return; }
+  if (window.__configMissing){
+    setConn('bad', 'config.js missing');
+    showSetupWarning('<b>config.js wasn\'t found next to this page.</b> In EdgeOne, every New Deployment replaces all files, so upload <code>index.html</code> and <code>config.js</code> together, in the same folder, every time.');
+    return;
+  }
+  if (window.__configError || typeof window.SHEETS_ENDPOINT === 'undefined'){
+    setConn('bad', 'config.js error');
+    showSetupWarning('<b>config.js has a typing error</b>' + (window.__configError ? ' (' + esc(window.__configError) + ')' : '') + '. Usually the quotes became curly (‘ ’ or “ ”). Open config.js in Notepad or VS Code and make the line exactly: <code>window.SHEETS_ENDPOINT = \'https://script.google.com/macros/s/…/exec\';</code> with straight quotes.');
+    return;
+  }
+  if (!SHEETS_ENDPOINT){
+    setConn('bad', 'Sheet link empty');
+    showSetupWarning('<b>config.js is uploaded, but the link inside is empty.</b> Paste your Apps Script web app URL between the quotes and upload it again with index.html.');
+    return;
+  }
+  if (!ENDPOINT_OK){
+    setConn('bad', 'Check sheet link');
+    showSetupWarning('<b>The link in config.js doesn\'t look right.</b> It should start with <code>https://script.google.com/macros/s/</code> and end with <code>/exec</code> (not <code>/dev</code>, and not the editor link). Found: <code>' + esc(SHEETS_ENDPOINT.slice(0, 90)) + '</code>');
+    return;
+  }
+  try{
+    const r = await fetch(SHEETS_ENDPOINT + '?ping=1', { method:'GET' });
+    const t = await r.text();
+    let j; try { j = JSON.parse(t); } catch(_) { throw new Error('login'); }
+    if (j && j.ok){
+      window.__backendVersion = String(j.backend || '');
+      // Don't rely on the version label alone: ask the backend to do a partner lookup and see how it answers.
+      const probe = await probeBackend();
+      window.__backendOutdated = probe === 'old';
+      if (window.__backendOutdated){
+        setConn('bad', 'Backend outdated');
+        showSetupWarning('<b>The live Apps Script doesn\'t support partner reviews yet</b> (it reports version <code>' + esc(window.__backendVersion || 'none') + '</code>; latest is <code>' + MIN_BACKEND + '</code>). The deployment your config.js link points to is running old code. Paste the latest <code>Code.gs</code>, run <code>checkVersion</code>, then Deploy → Manage deployments → ✏️ → <b>New version</b> → Deploy, and make sure config.js uses that deployment\'s URL.');
+      } else setConn('ok', 'Sheet connected', 'Connected to ' + (j.sheet || 'Google Sheet'));
+    }
+    else throw new Error('bad');
+  } catch(e){
+    setConn('bad', 'Sheet not reachable');
+    showSetupWarning('<b>The Apps Script link didn\'t answer.</b> Open <code>' + esc(SHEETS_ENDPOINT) + '?ping=1</code> in a private window. If Google asks you to sign in, set <i>Who has access</i> to <b>Anyone</b> and deploy a <b>New version</b>. If it shows an error, run <code>setup</code> in Apps Script and deploy again.');
+  }
+}
+function sendToSheet(record){
+  if (ON_APPS_SCRIPT){
+    return new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(new Error(e && e.message || e))).callApi(record))
+      .then(j => { if (!j.ok){ if (j.auth && window.__onAuthError) window.__onAuthError(j.error); throw new Error(j.error || 'The sheet rejected the entry.'); } return j; });
+  }
+  if (!SHEETS_ENDPOINT) return Promise.reject(new Error('The sheet link isn\'t set. Add your Apps Script URL to config.js.'));
+  return fetch(SHEETS_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(record) })
+    .catch(() => { throw new Error('Couldn\'t reach the Google Sheet. Check that the Apps Script is deployed with access set to "Anyone".'); })
+    .then(r => r.text())
+    .then(t => {
+      let j; try { j = JSON.parse(t); } catch(_) { throw new Error('Google returned a sign-in page instead of saving. Set the web app\'s access to "Anyone" and deploy a new version.'); }
+      if (!j.ok){ if (j.auth && window.__onAuthError) window.__onAuthError(j.error); throw new Error(j.error || 'The sheet rejected the entry.'); }
+      return j;
+    });
+}
+
+/* ---------- submit flow ---------- */
+function openReview(){
+  if (!validate()) return;
+  pendingRecord = buildRecord();
+  const r = pendingRecord, p = readParams(), at = y => lastRows[y-1];
+  const row = (k, v) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`;
+  $('sumTable').innerHTML =
+    row('Partner email', esc(r.partnerEmail)) + row('RM email', esc(r.rmEmail)) +
+    row('Target month', esc(monthLabel(r.targetMonth))) +
+    row('New clients / month', esc(n0(r.newClientsPerMonth))) +
+    row('SIP / client / month', esc(inr(r.sipPerClient))) +
+    row('Projected MF net sales: this month / 12 months', esc(`${inr(r.projNetSalesMonth)} / ${inr(r.projNetSales12m)}`)) +
+    row('Projected SIP book: this month / month 12', esc(`${inr(r.projSipBookMonth)} / ${inr(r.projSipBook12m)}`)) +
+    row('Projected income, Year 10', esc(`${inr(at(10).total)}/yr (${inr(at(10).total/12)}/mo)`)) +
+    `<tr><td colspan="2" class="rm"><b>Remarks</b><br>${r.remarks ? esc(r.remarks) : '<span style="color:var(--muted)">No remarks added</span>'}</td></tr>`;
+  $('confirmChk').checked = false; $('btnConfirm').disabled = true; $('btnConfirm').textContent = 'Confirm & submit';
+  $('modalReview').hidden = false; $('modalDone').hidden = true;
+  $('modal').classList.add('open'); $('confirmChk').focus();
+}
+function closeModal(){ $('modal').classList.remove('open'); }
+async function confirmSubmit(){
+  const btn = $('btnConfirm');
+  btn.disabled = true; btn.textContent = 'Submitting…'; $('btnCancel').disabled = true;
+  try{
+    const token = await resolveAuthToken();
+    const res = await sendToSheet(token ? { ...pendingRecord, authToken: token } : pendingRecord);
+    submittedPrint = fingerprint(pendingRecord);
+    lastSubmission = { id: res.id, time: res.entryDate || istNow() };
+    $('doneId').textContent = res.id; $('doneTime').textContent = 'Saved on ' + lastSubmission.time;
+    $('modalReview').hidden = true; $('modalDone').hidden = false;
+    $('submitStatus').textContent = `Submitted · Ref ${res.id} · ${lastSubmission.time}`; $('submitStatus').className = 'status ok';
+    setConn('ok', 'Sheet connected');
+    markDirty();
+  } catch(e){
+    toast('Couldn\'t submit: ' + e.message, true);
+    btn.disabled = false; btn.textContent = 'Try again';
+  } finally { $('btnCancel').disabled = false; }
+}
+
+/* ---------- PDF ---------- */
+function buildReportEl(){
+  const p = readParams(), partner = readPartner(), rows = lastRows, at = y => rows[y-1];
+  const imgs = Object.fromEntries(Object.keys(chartConfigs).map(k => [k, chartImage(k, 480, 245)]));
+  const kv = (k, v) => `<tr><td style="color:#5f6f86;padding:3px 10px 3px 0">${esc(k)}</td><td style="text-align:right;font-weight:500;padding:3px 0">${esc(v)}</td></tr>`;
+  const onOff = (on, txt) => on ? txt : 'Off';
+  const th = 'style="text-align:right;padding:5px 6px;font-size:9px;font-weight:600;color:#243b5e;background:#e3ebf5;border-bottom:1px solid #c5d5e8"';
+  const td = 'style="text-align:right;padding:4px 6px;font-size:9.5px;color:#13233a;border-bottom:1px solid #edf1f6"';
+  const tableRows = MILESTONES.map(y => { const r = at(y);
+    return `<tr${y > p.activeYears ? ' style="opacity:.45"' : ''}><td ${td.replace('right','left')}><b>${y}</b></td><td ${td}>${n0(r.clients)}</td><td ${td}>${inr(r.sipYr)}</td><td ${td}>${r.stepYr>0?inr(r.stepYr):'—'}</td><td ${td}>${inr(r.lumpYr)}</td><td ${td}>${inr(r.gains)}</td><td ${td}><b>${inr(r.aum)}</b></td><td ${td}>${inr(r.sipBook)}</td><td ${td}>${inr(r.trail)}</td><td ${td}>${r.cross>0?'+'+inr(r.cross):'—'}</td><td ${td}>${r.demat>0?'+'+inr(r.demat):'—'}</td><td ${td}><span style="font-weight:600;color:#2f4b75">${inr(r.total)}</span> <span style="color:#5f6f86;font-size:8.5px">${inr(r.total/12)}/mo</span></td><td ${td}>${r.uplift>0?`<span style="background:#e1f1e9;color:#2e7d57;font-weight:600;border-radius:9px;padding:1px 6px">+${Math.round(r.uplift)}%</span>`:'—'}</td></tr>`; }).join('');
+  const box = (title, body) => `<div style="flex:1;border:1px solid #dbe3ee;border-radius:8px;padding:10px 14px"><div style="font-size:11px;font-weight:600;color:#3a5f8f;margin-bottom:4px">${title}</div><table style="width:100%;font-size:11px;border-collapse:collapse">${body}</table></div>`;
+  const chartBox = (t, sub, k) => `<div class="pdf-chart" style="width:502px;box-sizing:border-box;border:1px solid #dbe3ee;border-radius:8px;padding:9px 10px 6px;margin-bottom:12px;background:#fff"><div style="font-size:12px;font-weight:600;color:#1b2f4b">${t}</div><div style="font-size:9.5px;color:#5f6f86;margin-bottom:4px">${sub}</div>${imgs[k]?`<img src="${imgs[k]}" style="width:480px;height:245px;display:block">`:''}</div>`;
+  const kpi = (l, r, bg) => `<div style="flex:1;padding:9px 14px;background:${bg}"><div style="color:#c5d5e8;font-size:10px">${l} income</div><div style="font-size:15px;font-weight:600">${inr(r.total)}/yr</div><div style="color:#c5d5e8;font-size:10px">${inr(r.total/12)}/mo · AUM ${inr(r.aum)}</div></div>`;
+  const submitted = lastSubmission && submittedPrint === fingerprint(buildRecord());
+
+  const el = document.createElement('div');
+  el.style.cssText = 'width:1080px;font-family:Inter,Arial,sans-serif;color:#13233a;background:#fff';
+  el.innerHTML = `
+  <div style="background:#1b2f4b;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-size:16px;font-weight:600">wealthy.in</div><div style="color:#9bb6d6;font-size:11px">Partner income projection report</div></div>
+    <div style="text-align:right;font-size:11px;color:#c5d5e8">Generated ${esc(istNow())}<br>${submitted ? 'Submission ref ' + esc(lastSubmission.id) : 'Not yet submitted'}</div>
+  </div>
+  <div style="padding:16px 24px">
+    <div style="display:flex;gap:12px">
+      ${box('Partner', kv('Partner email', partner.partnerEmail || '—') + kv('RM email', partner.rmEmail || '—') + kv('Target month', monthLabel(partner.targetMonth)))}
+      ${box('Book &amp; monthly targets', kv('Starting clients / AUM', n0(p.startClients)+' / ₹'+p.startAum+' Cr') + kv('New clients / month', n0(p.newClients)) + kv('SIP / client / month', inr(p.sip)+' (base +'+p.sipInc+'%/yr, step-up '+p.sipStep+'%)') + kv('Annual lumpsum / client', inr(p.lump)) + kv('Redemption / active years', p.red+'% / '+p.activeYears+' yrs') + kv('Trail / Market CAGR', p.trail+'% / '+p.cagr+'%') + kv('SIP behaviour', `${p.sipStop}% stop/yr · step-up ${p.stepYears > 0 ? p.stepYears + ' yrs' : 'every year'}`))}
+      ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}%`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))}`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
+    </div>
+    <div style="display:flex;margin-top:12px;color:#fff;border-radius:8px;overflow:hidden">
+      ${kpi('Year 1', at(1), '#1b2f4b')}${kpi('Year 5', at(5), '#243b5e')}${kpi('Year 10', at(10), '#2f4b75')}${kpi('Year 25', at(25), '#3a5f8f')}
+    </div>
+    <div style="font-size:13px;font-weight:600;margin:14px 0 6px;color:#1b2f4b">25-year income projections</div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #dbe3ee">
+      <thead><tr><th ${th.replace('right','left')}>Year</th><th ${th}>Clients</th><th ${th}>SIP contrib. / yr</th><th ${th}>Step-up SIP / yr</th><th ${th}>Lumpsum / yr</th><th ${th}>Mkt. gains</th><th ${th}>Total AUM</th><th ${th}>Avg SIP book / mo</th><th ${th}>Trail</th><th ${th}>Cross-sell</th><th ${th}>Demat</th><th ${th}>Total</th><th ${th}>Uplift</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div style="color:#5f6f86;font-size:9.5px;line-height:1.5;margin-top:8px">${$('footNote').innerHTML}</div>
+    <div class="html2pdf__page-break"></div>
+    <div style="font-size:13px;font-weight:600;color:#1b2f4b;margin:4px 0 10px">Charts</div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between">
+      ${chartBox('Annual income build-up','By source, Years 1–25','income')}${chartBox('AUM growth','Money invested vs market value','aum')}
+      ${chartBox('Income mix, Year ' + mixYear,'Share of annual income by source','mix')}${chartBox('Clients & SIP book','Client count and monthly SIP run-rate','book')}
+    </div>
+
+  </div>`;
+  return el;
+}
+async function downloadPdf(){
+  if (typeof html2pdf === 'undefined'){ window.print(); return; }
+  const btns = [$('btnPdf'), $('btnDonePdf')]; btns.forEach(b => b.disabled = true);
+  toast('Preparing your PDF…');
+  try{
+    const partner = readPartner();
+    const date = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());
+    const fname = `Income_Projection_${((partner.partnerEmail || 'Partner').split('@')[0]).replace(/[^\w-]+/g,'_')}_${date}.pdf`;
+    await html2pdf().set({
+      margin:[6,6,8,6], filename:fname, image:{ type:'jpeg', quality:0.96 },
+      html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff' },
+      jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }, pagebreak:{ mode:['css','legacy'], avoid:['.pdf-chart','tr'] }
+    }).from(buildReportEl()).save();
+    toast('PDF downloaded.');
+  } catch(e){
+    toast('PDF download failed — opening print instead.', true); window.print();
+  } finally { btns.forEach(b => b.disabled = false); }
+}
+
+/* ---------- CSV (inputs, projected business and the projection table) ---------- */
+function downloadCsv(){
+  const rec = buildRecord(), rows = lastRows;
+  const q = v => { const s = String(v ?? ''); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const yn = b => b ? 'Yes' : 'No';
+  const L = [];
+  L.push(['Wealthy partner income projection']);
+  L.push(['Submission ref', lastSubmission ? lastSubmission.id : 'Not submitted']);
+  L.push(['Generated (IST)', istNow()]);
+  L.push([]);
+  L.push(['Input', 'Value']);
+  [['Partner email', rec.partnerEmail], ['RM email', rec.rmEmail], ['Target month', monthLabel(rec.targetMonth)],
+   ['Starting clients', rec.startClients], ['Starting AUM (Cr)', rec.startAumCr], ['New clients / month', rec.newClientsPerMonth],
+   ['SIP / client / month (₹)', rec.sipPerClient], ['Base SIP increase % (new clients)', rec.baseSipIncPct], ['SIP step-up %', rec.sipStepUpPct],
+   ['Annual lumpsum / client (₹)', rec.lumpsumPerClient], ['Annual redemption %', rec.redemptionPct], ['Active years', rec.activeYears],
+   ['Trail rate %', rec.trailRatePct], ['Market CAGR %', rec.cagrPct],
+   ['SIPs stopping per year %', rec.sipStopPct], ['Step-up lasts (years per client, 0 = every year)', rec.stepUpYears],
+   ['Life insurance', yn(rec.lifeOn)], ['Life % of clients / yr', rec.lifePct], ['Life avg premium (₹)', rec.lifePremium], ['Life commission %', rec.lifeCommissionPct],
+   ['Health insurance', yn(rec.healthOn)], ['Health % of clients / yr', rec.healthPct], ['Health avg premium (₹)', rec.healthPremium], ['Health commission %', rec.healthCommissionPct],
+   ['PMS', yn(rec.pmsOn)], ['PMS % of clients / yr', rec.pmsPct], ['PMS investment (₹)', rec.pmsInvestment],
+   ['Demat & broking', yn(rec.dematOn)], ['Demat % clients active', rec.dematPct]].forEach(r => L.push(r));
+  L.push([]);
+  L.push(['Projected business', 'This month', 'First 12 months']);
+  L.push(['MF net sales (₹)', rec.projNetSalesMonth, rec.projNetSales12m]);
+  L.push(['SIP book (₹ / month)', rec.projSipBookMonth, rec.projSipBook12m + ' (at month 12)']);
+  L.push([]);
+  L.push(['Period', 'Clients', 'SIP contrib. / yr (₹)', 'Step-up SIP / yr (₹)', 'Lumpsum / yr (₹)', 'Mkt. gains (₹)', 'Total AUM (₹)', 'Avg SIP book / mo (₹)', 'Trail (₹)', 'Cross-sell (₹)', 'Demat (₹)', 'Total income (₹)', 'Uplift %']);
+  const R = v => Math.round(v);
+  MILESTONES.forEach(y => { const r = rows[y-1];
+    L.push(['Year ' + y, R(r.clients), R(r.sipYr), R(r.stepYr), R(r.lumpYr), R(r.gains), R(r.aum), R(r.sipBook), R(r.trail), R(r.cross), R(r.demat), R(r.total), R(r.uplift)]); });
+  const csv = '\ufeff' + L.map(r => r.map(q).join(',')).join('\r\n');
+  const date = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `Income_Projection_${((rec.partnerEmail || 'Partner').split('@')[0]).replace(/[^\w-]+/g,'_')}_${date}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('CSV downloaded.');
+}
+
+/* ---------- stepper arrows (shown on hover) ---------- */
+const ARROW_UP = '<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 5.5 4 2.5l3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARROW_DN = '<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function nudge(input, dir){
+  const step = parseFloat(input.step) || 1, min = input.min !== '' ? parseFloat(input.min) : -Infinity, max = input.max !== '' ? parseFloat(input.max) : Infinity;
+  const cur = parseFloat(input.value) || 0, dec = (String(step).split('.')[1] || '').length;
+  let next = dir > 0 ? Math.floor(cur/step + 1e-9)*step + step : Math.ceil(cur/step - 1e-9)*step - step;
+  input.value = Math.min(max, Math.max(min, +next.toFixed(dec)));
+  input.dispatchEvent(new Event('input', { bubbles:true }));
+}
+function addSteppers(){
+  document.querySelectorAll('.inbox input[type=number]').forEach(input => {
+    if (input.parentElement.querySelector('.stepper')) return;
+    const box = document.createElement('div'); box.className = 'stepper';
+    box.innerHTML = `<button type="button" tabindex="-1" aria-label="Increase">${ARROW_UP}</button><button type="button" tabindex="-1" aria-label="Decrease">${ARROW_DN}</button>`;
+    [...box.children].forEach((btn, i) => {
+      const dir = i === 0 ? 1 : -1; let t1, t2;
+      const stop = () => { clearTimeout(t1); clearInterval(t2); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); nudge(input, dir); t1 = setTimeout(() => t2 = setInterval(() => nudge(input, dir), 70), 400); });
+      ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+    });
+    input.parentElement.appendChild(box);
+  });
+}
+
+/* ---------- misc ---------- */
+let toastT;
+function toast(msg, err){ const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', err ? 7000 : 3600); }
+let renderT;
+const scheduleRender = () => { clearTimeout(renderT); renderT = setTimeout(render, 120); };
+
+let booted = false;
+document.addEventListener('DOMContentLoaded', () => {
+  if (booted) return; booted = true;
+  // Every refresh starts clean: no values restored by the browser
+  document.querySelectorAll('input, textarea, select').forEach(el => el.setAttribute('autocomplete', 'off'));
+  applyDefaults();
+  ['partnerEmail', 'rmEmail', 'remarks'].forEach(id => $(id).value = '');
+  $('targetMonth').value = istMonthValue();
+  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+  $('pmsInv').addEventListener('change', () => {
+    const v = parseFloat($('pmsInv').value);
+    if (!isFinite(v) || v < RATES.pmsMin){ $('pmsInv').value = RATES.pmsMin; toast('PMS investment can\'t be less than ₹50 lakh.'); scheduleRender(); }
+  });
+  addSteppers();
+  document.querySelectorAll('aside input, aside select').forEach(el => {
+    el.addEventListener('input', () => { el.closest('.field')?.classList.remove('invalid'); scheduleRender(); });
+    el.addEventListener('change', scheduleRender);
+  });
+
+  const rem = $('remarks');
+  const sizeRemarks = () => {
+    const editing = document.activeElement === rem;
+    rem.style.height = 'auto';
+    const full = rem.scrollHeight + 2;
+    rem.style.height = (editing ? Math.min(Math.max(full, 150), 360) : Math.min(full, 52)) + 'px';
+  };
+  rem.addEventListener('focus', () => { $('submitBar').classList.add('editing'); sizeRemarks(); $('submitBar').scrollIntoView({ behavior:'smooth', block:'nearest' }); });
+  // Collapse after a short delay, so a click on Submit (just below the box) still lands on the button
+  rem.addEventListener('blur', () => setTimeout(() => {
+    if (document.activeElement === rem) return;
+    $('submitBar').classList.remove('editing'); sizeRemarks();
+  }, 250));
+  rem.addEventListener('input', () => { $('remCount').textContent = rem.value.length; sizeRemarks(); markDirty(); });
+
+  $('mixSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    mixYear = +b.dataset.y; [...$('mixSeg').children].forEach(x => x.classList.toggle('on', x === b));
+    drawCharts(lastRows);
+  });
+  $('btnReset').addEventListener('click', () => { applyDefaults(); render(); toast('Inputs reset to defaults.'); });
+  $('btnSubmit').addEventListener('click', openReview);
+  [$('btnPdf'), $('btnDonePdf')].forEach(b => b.addEventListener('click', downloadPdf));
+  [$('btnCsv'), $('btnDoneCsv')].forEach(b => b.addEventListener('click', downloadCsv));
+  $('confirmChk').addEventListener('change', e => $('btnConfirm').disabled = !e.target.checked);
+  $('btnConfirm').addEventListener('click', confirmSubmit);
+  $('btnCancel').addEventListener('click', closeModal);
+  $('btnDoneClose').addEventListener('click', closeModal);
+  $('modal').addEventListener('click', e => { if (e.target === $('modal') && !$('modalDone').hidden) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('modal').classList.contains('open') && !$('btnCancel').disabled) closeModal(); });
+  render();
+  checkConnection();
+});
+</script>
+<script>
+/* ================== LOGIN: Sign in with Google ==================
+   The page stays locked until Apps Script confirms the signed-in person is in the Hierarchy tab.
+   Every request then carries the Google sign-in token, and Apps Script filters data by hierarchy. */
+(function(){
+  const CLIENT_ID = String(window.GOOGLE_CLIENT_ID || '').trim();
+  const LOGIN_URL = String(window.LOGIN_URL || '').trim();      // Apps Script LOGIN deployment (company-only)
+  const STORE = 'wealthyIdToken';
+  let token = null, refreshT = null;
+  window.APP_USER = null;
+  window.currentIdToken = () => token;
+  window.getAuthToken = async () => token;          // used by the calculator's Submit
+  const b64 = s => atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
+  // Login pass from Apps Script = "payload.signature" (expiry in ms); Google token = JWT (expiry in seconds)
+  const expiryOf = t => { try { const p = String(t).split('.');
+    return p.length === 2 ? Number(JSON.parse(b64(p[0])).x) : Number(JSON.parse(b64(p[1])).exp) * 1000; } catch(_) { return 0; } };
+  const setMsg = (m, err) => { const e = $('loginMsg'); e.textContent = m || ''; e.className = 'login-msg' + (err ? ' err' : ''); };
+  const lock = (msg, err) => { document.body.classList.add('locked'); setMsg(msg, err); if (msg && err) showLoginTab('employee'); };
+  function showLoginTab(t){
+    document.querySelectorAll('.login-tabs button').forEach(b => b.classList.toggle('on', b.dataset.lt === t));
+    $('ltPartner').hidden = t !== 'partner'; $('ltEmployee').hidden = t !== 'employee';
+  }
+  /* ---------- Partner view: email only, read-only ---------- */
+  const PSTORE = 'wealthyPartnerEmail';
+  const ptMsg = (m, err) => { const e = $('ptMsg'); e.textContent = m || ''; e.className = 'login-msg' + (err ? ' err' : ''); };
+  async function partnerFetch(email){
+    let j;
+    if (ON_APPS_SCRIPT){
+      j = await new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(new Error(e && e.message || e))).callApi({ action:'partnerView', email }));
+    } else {
+      if (!SHEETS_ENDPOINT) throw new Error('The sheet link isn\'t set in config.js.');
+      let r; try { r = await fetch(SHEETS_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ action:'partnerView', email }) }); }
+      catch(_) { throw new Error('Couldn\'t reach the server. Check your connection and try again.'); }
+      try { j = JSON.parse(await r.text()); } catch(_) { throw new Error('The server returned an unexpected page. Please try again later.'); }
+    }
+    if (!j.ok) throw new Error(/sign|signed|official/i.test(j.error || '') || j.auth ? 'Partner view isn\'t switched on yet. Please ask your RM or admin to update the app (latest Code.gs → New version).' : (j.error || 'Couldn\'t load your data.'));
+    return j;
+  }
+  async function startPartner(email, silent){
+    email = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ if (!silent) ptMsg('Enter a valid email address.', true); return false; }
+    if (!silent) ptMsg('Loading your data…');
+    try{
+      const j = await partnerFetch(email);
+      try { sessionStorage.setItem(PSTORE, email); } catch(_){}
+      window.APP_PARTNER = { email, data: j };
+      document.body.classList.add('partner-mode');
+      $('userName').textContent = email; $('userRole').textContent = 'Partner'; $('userChip').hidden = false;
+      $('signOut').hidden = false; $('signOut').textContent = 'Exit';
+      unlock(); ptMsg('');
+      document.dispatchEvent(new CustomEvent('app:partner', { detail: { email, data: j } }));
+      return true;
+    } catch(e){ try { sessionStorage.removeItem(PSTORE); } catch(_){} if (!silent) ptMsg(e.message, true); return false; }
+  }
+  const unlock = () => document.body.classList.remove('locked');
+  const clear = () => { token = null; try { sessionStorage.removeItem(STORE); } catch(_){} };
+
+  async function whoami(t){
+    let j;
+    if (ON_APPS_SCRIPT){
+      j = await new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(new Error(e && e.message || e))).callApi(t ? { action:'whoami', idToken:t } : { action:'whoami' }));
+    } else {
+      if (!SHEETS_ENDPOINT) throw new Error('The sheet link isn\'t set in config.js.');
+      let r; try { r = await fetch(SHEETS_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ action:'whoami', idToken:t }) }); }
+      catch(_) { throw new Error('Couldn\'t reach the Google Sheet. Check your connection and try again.'); }
+      const txt = await r.text();
+      try { j = JSON.parse(txt); } catch(_) { throw new Error('The Apps Script link returned a Google page instead of data. Set its access to "Anyone" and deploy a New version.'); }
+    }
+    if (!j.ok){
+      if (/valid partner email/i.test(j.error || '')) throw new Error('The live Apps Script doesn\'t have login yet. Paste the latest Code.gs and deploy a New version.');
+      throw new Error(j.error || 'Sign-in failed.');
+    }
+    return j;
+  }
+  async function accept(t, silent){
+    const exp = expiryOf(t);
+    if (!exp || exp < Date.now() + 30000){ clear(); if (!silent) lock('Your sign-in has expired. Please sign in again.', true); return false; }
+    if (!silent) setMsg('Checking your access…');
+    try{
+      const j = await whoami(t);
+      token = t; try { sessionStorage.setItem(STORE, t); } catch(_){}
+      window.APP_USER = j; applyUser(j); unlock(); setMsg('');
+      clearTimeout(refreshT);
+      const ms = exp - Date.now() - 5 * 60000;
+      if (ms > 0 && t.split('.').length === 3) refreshT = setTimeout(() => { try { google.accounts.id.prompt(); } catch(_){} }, ms);   // Google tokens renew quietly
+      if (t.split('.').length === 2) refreshT = setTimeout(() => window.__onAuthError('Your sign-in has expired. Please sign in again.'), Math.max(0, exp - Date.now()));
+      document.dispatchEvent(new CustomEvent('app:login', { detail: j }));
+      return true;
+    } catch(e){ clear(); lock(e.message, true); return false; }
+  }
+  function applyUser(j){
+    const u = j.user;
+    $('userName').textContent = u.name || u.email;
+    $('userRole').textContent = j.isAdmin ? 'Admin · sees all partners' : [u.title, j.ownPartners ? '' : 'view only'].filter(Boolean).join(' · ');
+    $('userChip').hidden = false;
+    ['rmEmail', 'sRm'].forEach(id => { const el = $(id); if (el){ el.value = u.email; el.readOnly = true; el.title = 'Signed in as ' + u.email; } });
+    if (typeof scheduleRender === 'function') scheduleRender();
+  }
+  window.__onAuthError = msg => { clear(); lock(msg || 'Please sign in again.', true); renderButton(); };
+  // Sign in through the Apps Script LOGIN deployment: Google signs the person in, Apps Script sends them back with a pass
+  function loginButton(){
+    $('gsiBtn').innerHTML = '<button type="button" class="btn btn-primary login-go" id="loginGo"><svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#fff" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#dbe7ff" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.9.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18z"/><path fill="#b9cdf5" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8z"/><path fill="#fff" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z"/></svg>Sign in with company Google account</button>';
+    $('loginGo').onclick = () => {
+      setMsg('Opening Google sign-in…');
+      location.href = LOGIN_URL + (LOGIN_URL.includes('?') ? '&' : '?') + 'login=1&return=' + encodeURIComponent(location.origin + location.pathname);
+    };
+  }
+  function renderButton(){
+    if (LOGIN_URL) return loginButton();
+    if (!(window.google && google.accounts && google.accounts.id)) return;
+    $('gsiBtn').innerHTML = '';
+    google.accounts.id.renderButton($('gsiBtn'), { theme:'outline', size:'large', text:'signin_with', shape:'pill', width:280 });
+  }
+  function initGsi(){
+    if (LOGIN_URL) return loginButton();
+    if (!CLIENT_ID){ lock('Login isn\'t set up: add LOGIN_URL (your Apps Script login link) to config.js.', true); return; }
+    if (!document.getElementById('gsiLib')){ const s = document.createElement('script'); s.id = 'gsiLib'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; document.head.appendChild(s); }
+    let tries = 0;
+    (function wait(){
+      if (window.google && google.accounts && google.accounts.id){
+        google.accounts.id.initialize({ client_id: CLIENT_ID, callback: r => accept(r.credential), auto_select: true, cancel_on_tap_outside: false });
+        renderButton();
+        if (!token) { try { google.accounts.id.prompt(); } catch(_){} }
+        return;
+      }
+      if (++tries > 100) return lock('Couldn\'t load Google sign-in. Check your internet connection and refresh.', true);
+      setTimeout(wait, 100);
+    })();
+  }
+  function signOut(){
+    try { sessionStorage.removeItem(PSTORE); } catch(_){}
+    try { google.accounts.id.disableAutoSelect(); } catch(_){}
+    clear(); window.APP_USER = null;
+    location.reload();
+  }
+  // Served by Apps Script (deployed "Anyone within your domain"): Google has already signed the person in.
+  async function appsScriptSession(){
+    $('gsiBtn').hidden = true; $('signOut').hidden = true;
+    lock('Checking your access…');
+    try{
+      const j = await whoami(undefined);
+      window.APP_USER = j; applyUser(j); unlock(); setMsg('');
+      document.dispatchEvent(new CustomEvent('app:login', { detail: j }));
+    } catch(e){ lock(e.message, true); }
+  }
+  document.addEventListener('DOMContentLoaded', async () => {
+    $('signOut').addEventListener('click', signOut);
+    document.querySelectorAll('.login-tabs button').forEach(b => b.addEventListener('click', () => showLoginTab(b.dataset.lt)));
+    $('ptGo').addEventListener('click', () => startPartner($('ptEmail').value));
+    $('ptEmail').addEventListener('keydown', e => { if (e.key === 'Enter') startPartner($('ptEmail').value); });
+    if (ON_APPS_SCRIPT) return appsScriptSession();
+    // A partner who opened their view in this tab goes straight back in (unless returning from employee sign-in)
+    if (!/[#&]auth=/.test(location.hash)){
+      let ps = null; try { ps = sessionStorage.getItem(PSTORE); } catch(_){}
+      if (ps){ lock(''); if (await startPartner(ps, true)) return; }
+    }
+    // Coming back from the Apps Script login page with a pass in the address (#auth=…)
+    const m = location.hash.match(/[#&]auth=([^&]+)/);
+    if (m){ history.replaceState(null, '', location.pathname + location.search); }
+    let stored = m ? decodeURIComponent(m[1]) : null;
+    if (!stored){ try { stored = sessionStorage.getItem(STORE); } catch(_){} }
+    lock('');
+    if (stored && await accept(stored, !m)) { if (!LOGIN_URL) initGsi(); return; }   // signed in: straight into the app
+    initGsi();
+  });
+})();
+</script>
+
+<script>
+/* ================== INSIGHTS: PARTNER REVIEW ==================
+   1. Partner email  2. RM records actuals (Sales tab, one entry per month)
+   3. Summary → commitment-vs-actual table (monthly / quarterly) → charts */
+(function(){
+  let DATA = null, partner = '', insCharts = {}, view = 'm';
+  const projCache = new Map();
+  const SALES_INPUTS = [['sNew','newClients'],['sSip','sipBook'],['sNet','netSales'],['sLifeN','lifePolicies'],['sLifeP','lifePremium'],
+                        ['sHealthN','healthPolicies'],['sHealthP','healthPremium'],['sPmsN','pmsClients'],['sPmsA','pmsAmount'],['sDemat','dematAccounts']];
+
+  /* ---------- helpers ---------- */
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const pos = v => Math.max(0, num(v));
+  const bool = v => v === true || v === 'Yes' || v === 'TRUE' || v === 'true';
+  const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
+  function normMonth(v){
+    const s = String(v || ''); const m = s.match(/^(\d{4})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2];
+    const d = new Date(s); return isNaN(d) ? '' : d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0');
+  }
+  const monthDiff = (a, b) => { const [ay, am] = a.split('-').map(Number), [by, bm] = b.split('-').map(Number); return (by*12 + bm) - (ay*12 + am); };
+  function fmtEntry(s){
+    const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!m) return String(s || '—');
+    return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
+  }
+  const latestByMonth = list => { const o = {}; list.forEach(r => { if (!o[r.month] || r.entry > o[r.month].entry) o[r.month] = r; }); return Object.values(o).sort((a, b) => a.month.localeCompare(b.month)); };
+  const fmtCount = v => (Math.round(v * 10) / 10).toLocaleString('en-IN');
+  const signedInr = v => (v < 0 ? '−' : '') + inr(Math.abs(v));
+  const band = pct => pct == null ? 'na' : pct >= 100 ? 'good' : pct >= 75 ? 'mid' : 'low';
+  const pctOf = (a, c) => c > 0 ? a / c * 100 : null;
+  function fyQuarter(ym){
+    const [y, m] = ym.split('-').map(Number);
+    const fy = m >= 4 ? y + 1 : y, q = m >= 4 ? Math.ceil((m - 3) / 3) : 4;
+    const names = { 1:'Apr–Jun', 2:'Jul–Sep', 3:'Oct–Dec', 4:'Jan–Mar' };
+    return { key: `${fy}-Q${q}`, label: `Q${q} FY${String(fy).slice(2)}`, span: `${names[q]} ${q === 4 ? fy : fy - 1}`, fy };
+  }
+  const fyOf = ym => fyQuarter(ym).fy;
+
+  function paramsFromRecord(r){
+    return {
+      startClients:pos(r.startClients), startAum:pos(r.startAumCr), newClients:pos(r.newClientsPerMonth), sip:pos(r.sipPerClient),
+      sipStep:pos(r.sipStepUpPct), sipInc:pos(r.baseSipIncPct), lump:pos(r.lumpsumPerClient), red:pos(r.redemptionPct),
+      activeYears:Math.min(pos(r.activeYears), 25), trail:pos(r.trailRatePct), cagr:pos(r.cagrPct),
+      lifeOn:bool(r.lifeOn), lifePct:pos(r.lifePct), lifePrem:pos(r.lifePremium), lifeComm:pos(r.lifeCommissionPct),
+      healthOn:bool(r.healthOn), healthPct:pos(r.healthPct), healthPrem:pos(r.healthPremium), healthComm:pos(r.healthCommissionPct),
+      pmsOn:bool(r.pmsOn), pmsPct:pos(r.pmsPct), pmsInv:Math.max(pos(r.pmsInvestment), RATES.pmsMin), dematOn:bool(r.dematOn), dematPct:pos(r.dematPct),
+      sipStop: Math.min(pos(r.sipStopPct), 100), stepYears: Math.min(pos(r.stepUpYears), 25)
+    };
+  }
+  function projection(s){ const k = s.id || s.entry; if (!projCache.has(k)) projCache.set(k, compute(paramsFromRecord(s))); return projCache.get(k); }
+
+  /* What the partner committed for a given month */
+  function commitmentFor(month, subsList){
+    const list = subsList || (DATA && DATA.subs);
+    if (!list) return null;
+    const cands = list.filter(s => s.month <= month);
+    if (!cands.length) return null;
+    const s = cands[cands.length - 1], diff = monthDiff(s.month, month);
+    if (diff > 11) return null;
+    const p = paramsFromRecord(s), m = projection(s).months[diff];
+    const perMonth = (on, pct) => on ? m.clients * pct / 100 / 12 : 0;
+    return { from: s.month, carried: diff > 0, newClients: p.activeYears >= 1 ? p.newClients : 0, sipBook: m.sipBook, netSales: m.netSales,
+             life: perMonth(p.lifeOn, p.lifePct), health: perMonth(p.healthOn, p.healthPct), pms: perMonth(p.pmsOn, p.pmsPct),
+             demat: p.dematOn ? p.newClients * p.dematPct / 100 : 0 };
+  }
+
+  /* ---------- server ---------- */
+  function api(action, payload){
+    if (ON_APPS_SCRIPT){
+      return new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(new Error(e && e.message || e))).callApi({ action, ...payload, idToken: window.currentIdToken && window.currentIdToken() }))
+        .then(j => { if (j && j.ok === false){ if (j.auth && window.__onAuthError) window.__onAuthError(j.error); const e = new Error(j.error || 'Request failed.'); e.data = j; throw e; } return j; });
+    }
+    if (window.__backendOutdated)
+      return Promise.reject(new Error('Your Apps Script is an older version. Paste the latest Code.gs and deploy a New version.'));
+    if (!SHEETS_ENDPOINT) return Promise.reject(new Error('The sheet link isn\'t set in config.js.'));
+    return fetch(SHEETS_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ action, ...payload, idToken: window.currentIdToken && window.currentIdToken() }) })
+      .catch(() => { throw new Error('Couldn\'t reach the Google Sheet.'); })
+      .then(r => r.text())
+      .then(t => { let j; try { j = JSON.parse(t); } catch(_) { throw new Error('Google returned a sign-in page. Check the web app access is set to "Anyone".'); }
+                   if (!j.ok){
+                     if (j.auth && window.__onAuthError) window.__onAuthError(j.error);
+                     const e = new Error(/valid partner email/i.test(j.error || '') && emailOk(payload.email || (payload.record || {}).partnerEmail)
+                       ? 'Your Apps Script is an older version. Paste the latest Code.gs and deploy a New version.' : (j.error || 'Request failed.'));
+                     e.data = j; throw e;
+                   }
+                   return j; });
+  }
+  async function loadPartner(email){ setData(await api('partner', { email })); }
+  function setData(j){
+    const subs = (j.submissions || []).map((r, i) => ({ ...r, id: r.id || ('s' + i), month: normMonth(r.targetMonth), entry: String(r.entryDate || '') })).filter(r => r.month);
+    const sales = (j.sales || []).map((r, i) => ({ ...r, id: r.id || ('a' + i), month: normMonth(r.salesMonth), entry: String(r.entryDate || '') })).filter(r => r.month);
+    projCache.clear();
+    DATA = { subs: latestByMonth(subs), sales: latestByMonth(sales), canEdit: !!j.canEdit, owner: j.owner || '', all: subs };   // one entry per month: latest wins
+  }
+  const isPartnerMode = () => document.body.classList.contains('partner-mode');
+
+  /* Partner view: load their own data, fill the calculator with their latest projection (read-only) */
+  document.addEventListener('app:partner', e => {
+    const { email, data } = e.detail;
+    setData(data); partner = email;
+    $('insBody').hidden = false; $('salesCard').hidden = true; $('insResult').hidden = true;
+    renderHead();
+    // Calculator: pre-filled with their latest projection if there is one; they can change numbers freely but not submit.
+    const latest = [...DATA.all].sort((a, b) => (a.entry || '').localeCompare(b.entry || '')).pop();
+    if (latest){
+      const p = paramsFromRecord(latest);
+      for (const k in DEFAULTS){
+        const el = $(k); if (!el) continue;
+        if (typeof DEFAULTS[k] === 'boolean') el.checked = !!p[k]; else el.value = p[k];
+        el.dispatchEvent(new Event('change'));
+      }
+    }
+    $('partnerEmail').value = email; $('rmEmail').value = latest ? (latest.rmEmail || '') : ''; if (latest) $('targetMonth').value = latest.month || '';
+    const rmLabel = document.querySelector('label[for="rmEmail"]'); if (rmLabel) rmLabel.textContent = 'Your RM';
+    $('submitStatus').textContent = latest ? 'Pre-filled with the projection your RM submitted. Change any number to explore; to update it officially, contact your RM.'
+                                           : 'Try your own numbers. To submit an official projection, contact your RM.';
+    if ($('remarks')){ $('remarks').value = latest ? (latest.remarks || '') : ''; $('remarks').placeholder = 'No remarks'; }
+    ['partnerEmail', 'rmEmail', 'remarks'].forEach(id => { if ($(id)) $(id).readOnly = true; });
+    if (typeof render === 'function') render();
+  });
+
+  async function downloadReviewPdf(){
+    if (typeof html2pdf === 'undefined'){ window.print(); return; }
+    if ($('insResult').hidden) showResults();
+    const btn = $('insPdf'); btn.disabled = true; toast('Preparing your PDF…');
+    document.body.classList.add('pdf-capture');
+    try{
+      const date = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Kolkata' }).format(new Date());
+      await html2pdf().set({
+        margin:[6,6,8,6], filename:`Performance_Review_${((partner ? partner.split('@')[0] : (TEAM ? selectionLabel() : '')) || 'Partner').replace(/[^\w-]+/g,'_')}_${date}.pdf`,
+        image:{ type:'jpeg', quality:0.95 }, html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', windowWidth:1400 },
+        jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }, pagebreak:{ mode:['css','legacy'], avoid:['.chart-card','tr','.ytd','.summary-card'] }
+      }).from($('insBody')).save();
+      toast('PDF downloaded.');
+    } catch(e){ toast('PDF download failed — opening print instead.', true); window.print(); }
+    finally { document.body.classList.remove('pdf-capture'); btn.disabled = false; }
+  }
+
+  /* ---------- 1. partner picker (only partners this person may view) ---------- */
+  function renderHead(){
+    if (DATA.agg){
+      const n = DATA.agg.length, withAct = DATA.agg.filter(p => p.sales.length).length, own = DATA.agg.some(p => p.rm === me());
+      $('insPartner').textContent = selectionLabel();
+      $('insPartnerSub').textContent = `${n} partner${n === 1 ? '' : 's'} · ${withAct} with actuals`;
+      const w = $('insWarn'); w.hidden = false;
+      w.textContent = !n ? 'No partners match these filters.'
+        : `Totals for the ${n} partner${n === 1 ? '' : 's'} in this selection. Choose a partner to see their details${own ? ' or record actuals for your own partners' : ''}.`;
+      return;
+    }
+    const last = DATA.subs[DATA.subs.length - 1];
+    $('insPartner').textContent = partner;
+    const bits = [];
+    if (last && last.rmEmail) bits.push('RM ' + last.rmEmail);
+    bits.push(`${DATA.subs.length} month${DATA.subs.length === 1 ? '' : 's'} of projections`);
+    bits.push(`${DATA.sales.length} month${DATA.sales.length === 1 ? '' : 's'} of actuals`);
+    $('insPartnerSub').textContent = bits.join(' · ');
+    const w = $('insWarn');
+    if (isPartnerMode()){
+      w.hidden = !!(DATA.subs.length || DATA.sales.length);
+      w.textContent = 'No data found for this email yet. Once your RM submits a projection and records your business, it will appear here.';
+      return;
+    }
+    if (!DATA.canEdit){ w.hidden = false; w.textContent = `View only: this partner belongs to ${DATA.owner || 'another RM'}. Only their RM can record actuals.`; }
+    else if (!DATA.sales.length){ w.hidden = false; w.textContent = 'No actuals recorded yet: fill in this month below to start tracking.'; }
+    else w.hidden = true;
+  }
+
+  /* ---------- 2. record actuals ---------- */
+  function prefillSales(){
+    const m = normMonth($('sMonth').value), ex = DATA.sales.find(r => r.month === m);
+    SALES_INPUTS.forEach(([id, k]) => $(id).value = ex && ex[k] !== '' && ex[k] != null && num(ex[k]) !== 0 ? num(ex[k]) : '');
+    const lastSub = DATA.subs[DATA.subs.length - 1];
+    if (!$('sRm').value) $('sRm').value = (ex && ex.rmEmail) || (lastSub && lastSub.rmEmail) || '';
+    $('salesEditNote').textContent = ex ? `${monthLabel(m)} was recorded on ${fmtEntry(ex.entry)}. Saving will replace that entry.` : '';
+  }
+  async function submitSales(){
+    const month = normMonth($('sMonth').value), rm = $('sRm').value.trim().toLowerCase();
+    if (!month){ toast('Choose the month.', true); $('sMonth').focus(); return; }
+    if (!emailOk(rm)){ toast('Enter a valid RM email.', true); $('sRm').focus(); return; }
+    const rec = { partnerEmail: partner, rmEmail: rm, salesMonth: month, source: location.hostname || 'apps-script' };
+    SALES_INPUTS.forEach(([id, k]) => rec[k] = num($(id).value));
+    const btn = $('salesSubmit'); btn.disabled = true; btn.textContent = 'Saving…';
+    try{
+      const res = await api('sales', { record: rec });
+      toast(`Actuals for ${monthLabel(month)} saved${res.replaced ? ' (earlier entry replaced)' : ''}.`);
+      await loadPartner(partner);
+      DATA.agg = null;
+      if (TEAM){ const p = TEAM.partners.find(x => x.email === partner); if (p){ p.sales = DATA.sales; p.subs = DATA.subs; } }
+      renderHead(); prefillSales();
+      showResults(false);
+    } catch(e){ toast('Couldn\'t save: ' + e.message, true); }
+    finally { btn.disabled = false; btn.textContent = 'Save actuals'; }
+  }
+
+  /* ---------- 3. periods (monthly or quarterly) ---------- */
+  function monthlyRows(){
+    if (DATA.agg){
+      const by = {};
+      DATA.agg.forEach(p => p.sales.forEach(a => {
+        const r = by[a.month] || (by[a.month] = { key: a.month, label: monthShort(a.month), span: '', months: 1, recorded: 1, last: a.month,
+          act: { newClients:0, sipBook:0, netSales:0, life:0, health:0, pms:0, demat:0, lifeP:0, healthP:0, pmsA:0 }, com: null });
+        const add = { newClients: num(a.newClients), sipBook: num(a.sipBook), netSales: num(a.netSales), life: num(a.lifePolicies), health: num(a.healthPolicies),
+                      pms: num(a.pmsClients), demat: num(a.dematAccounts), lifeP: num(a.lifePremium), healthP: num(a.healthPremium), pmsA: num(a.pmsAmount) };
+        for (const k in add) r.act[k] += add[k];
+        const c = commitmentFor(a.month, p.subs);
+        if (c){ r.com = r.com || { newClients:0, sipBook:0, netSales:0 }; r.com.newClients += c.newClients; r.com.sipBook += c.sipBook; r.com.netSales += c.netSales; }
+      }));
+      return Object.values(by).sort((a, b) => a.key.localeCompare(b.key));
+    }
+    return DATA.sales.map(a => {
+      const c = commitmentFor(a.month);
+      return { key: a.month, label: monthShort(a.month), span: '', months: 1, recorded: 1, last: a.month,
+        act: { newClients: num(a.newClients), sipBook: num(a.sipBook), netSales: num(a.netSales), life: num(a.lifePolicies), health: num(a.healthPolicies),
+               pms: num(a.pmsClients), demat: num(a.dematAccounts), lifeP: num(a.lifePremium), healthP: num(a.healthPremium), pmsA: num(a.pmsAmount) },
+        com: c ? { newClients: c.newClients, sipBook: c.sipBook, netSales: c.netSales } : null };
+    });
+  }
+  function quarterlyRows(){
+    const out = {};
+    monthlyRows().forEach(r => {
+      const q = fyQuarter(r.key);
+      const g = out[q.key] || (out[q.key] = { key: q.key, label: q.label, span: q.span, months: 3, recorded: 0, last: r.key,
+        act: { newClients:0, sipBook:0, netSales:0, life:0, health:0, pms:0, demat:0, lifeP:0, healthP:0, pmsA:0 }, com: null, _sip: null });
+      g.recorded++;
+      ['newClients','netSales','life','health','pms','demat','lifeP','healthP','pmsA'].forEach(k => g.act[k] += r.act[k]);
+      if (r.key >= g.last || !g._sip){ g.last = r.key; g.act.sipBook = r.act.sipBook; g._sip = r.com ? r.com.sipBook : null; }
+      if (r.com){ g.com = g.com || { newClients:0, sipBook:null, netSales:0 }; g.com.newClients += r.com.newClients; g.com.netSales += r.com.netSales; }
+    });
+    return Object.values(out).sort((a, b) => a.key.localeCompare(b.key)).map(g => { if (g.com) g.com.sipBook = g._sip; return g; });
+  }
+  const periods = () => view === 'q' ? quarterlyRows() : monthlyRows();
+
+  function showResults(scroll = true){
+    $('insResult').hidden = false;
+    renderYtd();
+    renderSummary();
+    renderTable();
+    renderCharts();
+    if (scroll) setTimeout(() => $('insResult').scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+  }
+
+  /* ---------- year to date (financial year of the latest recorded month) ---------- */
+  function ytdRows(){
+    const m = monthlyRows(); if (!m.length) return { fy: null, rows: [] };
+    const fy = fyOf(m[m.length - 1].key); return { fy, rows: m.filter(r => fyOf(r.key) === fy) };
+  }
+  function renderYtd(){
+    const box = $('insYtd'), { fy, rows } = ytdRows();
+    if (!rows.length){ box.hidden = true; return; } box.hidden = false;
+    const wc = rows.filter(r => r.com), last = rows[rows.length - 1];
+    const sum = (list, k, src = 'act') => list.reduce((s, r) => s + r[src][k], 0);
+    const newA = sum(wc, 'newClients'), newC = sum(wc, 'newClients', 'com'), netA = sum(wc, 'netSales'), netC = sum(wc, 'netSales', 'com');
+    const sipA = last.act.sipBook, sipC = last.com ? last.com.sipBook : null;
+    const metric = (k, v, a, c, fmt, word = 'committed') => {
+      const p = c > 0 ? a / c * 100 : null, b = band(p);
+      const line = c == null || !wc.length ? 'No commitment to compare' : c > 0 ? `of <b>${fmt(c)}</b> ${word} · <b>${p >= 200 ? (p >= 1000 ? 'over 10×' : (p / 100).toFixed(1) + '×') : Math.round(p) + '%'}</b>`
+                 : `vs <b>${fmt(c)}</b> projected · <b>${a >= c ? 'ahead' : 'behind'}</b>`;
+      return `<div class="ytd-m"><div class="k">${k}</div><div class="v">${v}</div><div class="c">${line}</div><div class="ytd-bar"><i class="${c > 0 ? b : (c == null ? '' : a >= c ? 'good' : 'low')}" style="width:${p == null ? (c == null ? 0 : 100) : Math.min(100, p)}%"></i></div></div>`;
+    };
+    const xs = [['life', sum(rows, 'life')], ['health', sum(rows, 'health')], ['PMS', sum(rows, 'pms')], ['demat', sum(rows, 'demat')]];
+    const xsTotal = xs.reduce((s, x) => s + x[1], 0);
+    const first = rows[0].key, monthsN = rows.length;
+    box.innerHTML = `<div class="ytd-head"><h3>FY${String(fy).slice(2)} year to date</h3><span>${esc(monthShort(first))} – ${esc(monthShort(last.key))} · ${monthsN} month${monthsN === 1 ? '' : 's'} recorded</span></div>
+      <div class="ytd-grid">
+        ${metric('New clients', fmtCount(newA), newA, wc.length ? newC : null, fmtCount)}
+        ${metric('MF net sales', signedInr(netA), netA, wc.length ? netC : null, signedInr, 'projected')}
+        ${metric('SIP book (latest month)', inr(sipA), sipA, sipC, inr, 'projected')}
+        <div class="ytd-m"><div class="k">Cross-sell</div><div class="v">${fmtCount(xsTotal)}</div><div class="c">${xs.filter(x => x[1] > 0).map(x => `<b>${fmtCount(x[1])}</b> ${x[0]}`).join(' · ') || 'None recorded yet'}</div></div>
+      </div>`;
+  }
+
+  /* ---------- table ---------- */
+  function achCell(a, c){
+    const p = pctOf(a, c), b = band(p);
+    if (p == null) return `<td><span class="ach na"><span class="pct">—</span></span></td>`;
+    return `<td><span class="ach ${b}"><span class="pct">${Math.round(p)}%</span><span class="mbar"><i style="width:${Math.min(100, p)}%"></i></span></span></td>`;
+  }
+  function gapCell(a, c){
+    if (c == null) return '<td class="dim">—</td>';
+    if (c > 0) return achCell(a, c);
+    const d = a - c; return `<td><span class="gap ${d >= 0 ? 'good' : 'low'}">${d >= 0 ? '+' : '−'}${inr(Math.abs(d))}</span></td>`;
+  }
+  function renderTable(){
+    const rows = periods();
+    $('insViewSub').textContent = rows.length ? `${rows.length} ${view === 'q' ? 'quarter' : 'month'}${rows.length === 1 ? '' : 's'} recorded` : '';
+    if (!rows.length){ $('insTable').innerHTML = '<tbody><tr><td class="empty">No actuals recorded yet. Save this month above to start.</td></tr></tbody>'; return; }
+    const xs = (n, amt) => `${fmtCount(n)}${amt ? `<small style="display:block;color:var(--muted);font-size:10px">${inr(amt)}</small>` : ''}`;
+    const body = [...rows].reverse().map(r => { const a = r.act, c = r.com; return `<tr>
+        <td class="yr">${esc(r.label)}${r.span ? `<small>${esc(r.span)}${r.recorded < 3 ? ` · ${r.recorded} of 3 months` : ''}</small>` : ''}</td>
+        <td class="gs dim">${c ? fmtCount(c.newClients) : '—'}</td><td class="strong">${fmtCount(a.newClients)}</td>${achCell(a.newClients, c ? c.newClients : null)}
+        <td class="gs dim">${c && c.sipBook != null ? inr(c.sipBook) : '—'}</td><td class="strong">${inr(a.sipBook)}</td>${achCell(a.sipBook, c ? c.sipBook : null)}
+        <td class="gs dim">${c ? signedInr(c.netSales) : '—'}</td><td class="strong">${signedInr(a.netSales)}</td>${gapCell(a.netSales, c ? c.netSales : null)}
+        <td class="gs">${xs(a.life, a.lifeP)}</td><td>${xs(a.health, a.healthP)}</td><td>${xs(a.pms, a.pmsA)}</td><td>${fmtCount(a.demat)}</td>
+      </tr>`; }).join('');
+
+    // Footer: financial year to date
+    const fyNow = fyOf((monthlyRows().slice(-1)[0] || { key: istMonthValue() }).key);
+    const fyRowsT = rows.filter(r => fyOf(r.last) === fyNow);
+    const withCom = fyRowsT.filter(r => r.com);
+    const tA = k => fyRowsT.reduce((s, r) => s + r.act[k], 0);
+    const tC = k => withCom.reduce((s, r) => s + r.com[k], 0);
+    const newA = withCom.reduce((s, r) => s + r.act.newClients, 0), newC = tC('newClients');
+    const netA = withCom.reduce((s, r) => s + r.act.netSales, 0), netC = tC('netSales');
+    const last = fyRowsT[fyRowsT.length - 1];
+    const foot = `<tfoot><tr>
+        <td class="yr">FY${String(fyNow).slice(2)} YTD<small>${fyRowsT.length} ${view === 'q' ? 'quarter' : 'month'}${fyRowsT.length === 1 ? '' : 's'}</small></td>
+        <td class="gs">${withCom.length ? fmtCount(newC) : '—'}</td><td>${fmtCount(tA('newClients'))}</td>${achCell(newA, withCom.length ? newC : null)}
+        <td class="gs">${last.com && last.com.sipBook != null ? inr(last.com.sipBook) : '—'}</td><td>${inr(last.act.sipBook)}</td>${achCell(last.act.sipBook, last.com ? last.com.sipBook : null)}
+        <td class="gs">${withCom.length ? signedInr(netC) : '—'}</td><td>${signedInr(tA('netSales'))}</td>${gapCell(netA, withCom.length ? netC : null)}
+        <td class="gs">${fmtCount(tA('life'))}</td><td>${fmtCount(tA('health'))}</td><td>${fmtCount(tA('pms'))}</td><td>${fmtCount(tA('demat'))}</td>
+      </tr></tfoot>`;
+    $('insTable').innerHTML = `<thead>
+        <tr><th rowspan="2" class="lead l">${view === 'q' ? 'Quarter' : 'Month'}</th>
+          <th colspan="3" class="grp gs"><span>New clients</span></th><th colspan="3" class="grp gs"><span>SIP book (monthly)</span></th>
+          <th colspan="3" class="grp gs"><span>MF net sales</span></th><th colspan="4" class="grp gs"><span>Cross-sell (count · amount)</span></th>
+</tr>
+        <tr><th class="gs">Committed</th><th>Actual</th><th>Achieved</th><th class="gs">Projected</th><th>Actual</th><th>Achieved</th>
+          <th class="gs">Projected</th><th>Actual</th><th>Achieved</th><th class="gs">Life</th><th>Health</th><th>PMS</th><th>Demat</th></tr>
+      </thead><tbody>${body}</tbody>${foot}`;
+  }
+
+  /* ---------- charts ---------- */
+  function chart(key, id, cfg){ if (insCharts[key]) insCharts[key].destroy(); insCharts[key] = new Chart($(id), cfg); }
+  function renderCharts(){
+    if (typeof Chart === 'undefined') return;
+    const rows = periods(), labels = rows.map(r => r.label), unit = view === 'q' ? 'quarter' : 'month';
+    const COMMIT = '#d08a1e', ACT = PAL.b600, MET = '#5aa97d', MISS = '#d9776a';
+    // Legend: lines drawn as lines (dashed for commitment), bars as squares; met / missed explained explicitly
+    const legend = (extra = []) => ({ position:'bottom', onClick: () => {}, labels:{ usePointStyle:true, boxWidth:26, boxHeight:8, padding:14,
+      generateLabels: ch => [...ch.data.datasets.filter(d => !d._noLegend).map(d => ({
+          text: d.label, pointStyle: d.type === 'line' || ch.config.type === 'line' && d.type !== 'bar' ? 'line' : 'rectRounded',
+          strokeStyle: d.borderColor, fillStyle: d.type === 'line' || ch.config.type === 'line' && d.type !== 'bar' ? d.borderColor : d._legendColor || d.backgroundColor,
+          lineWidth: 2.5, lineDash: d.borderDash || [], hidden: false })), ...extra] } });
+    const swatch = (text, col) => ({ text, pointStyle:'rectRounded', fillStyle: col, strokeStyle: col, lineWidth: 0, hidden: false });
+    const opts = (yFmt, legendCfg) => ({ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+      plugins:{ legend: legendCfg, tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y == null ? '—' : yFmt(c.parsed.y)}` } } },
+      scales:{ x:{ grid:{ display:false }, border:{ display:false }, ticks:{ maxRotation:0 } }, y:{ beginAtZero:true, grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => yFmt(v) } } } });
+    const commitLine = (label, data) => ({ type:'line', label, data, borderColor:COMMIT, backgroundColor:COMMIT, borderDash:[6,4], borderWidth:2, pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:COMMIT, tension:0, spanGaps:true, fill:false, order:0 });
+    const metColors = (getA, getC) => rows.map(r => !r.com ? PAL.b300 : getA(r) >= getC(r) ? MET : MISS);
+    const setHead = (i, title, sub) => { $(`insC${i}T`).textContent = title; $(`insC${i}S`).textContent = sub; };
+
+    // 1. New clients
+    setHead(1, `New clients per ${unit}`, 'Actual new clients against the partner\'s commitment.');
+    chart('c1', 'insC1', { type:'bar', data:{ labels, datasets:[ commitLine('Committed', rows.map(r => r.com ? r.com.newClients : null)),
+      { label:'Actual', _noLegend:true, data: rows.map(r => r.act.newClients), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.newClients, r => r.com.newClients) } ] },
+      options: opts(fmtCount, legend([swatch('Actual: met', MET), swatch('Actual: missed', MISS)])) });
+
+    // 2. YTD running total
+    const fyNow = fyOf((monthlyRows().slice(-1)[0] || { key: istMonthValue() }).key), ytd = rows.filter(r => fyOf(r.last) === fyNow);
+    let cc = 0, ca = 0;
+    const cumC = ytd.map(r => { cc += r.com ? r.com.newClients : 0; return Math.round(cc * 10) / 10; });
+    const cumA = ytd.map(r => { ca += r.act.newClients; return Math.round(ca * 10) / 10; });
+    setHead(2, `New clients: FY${String(fyNow).slice(2)} year to date`, 'Running total of actual new clients against the running total committed.');
+    chart('c2', 'insC2', { type:'line', data:{ labels: ytd.map(r => r.label), datasets:[
+      { label:'Actual (YTD)', data: cumA, borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
+      commitLine('Committed (YTD)', cumC) ] }, options: opts(fmtCount, legend()) });
+
+    // 3. SIP book
+    setHead(3, `SIP book per ${unit}`, 'Actual monthly SIP book against the projected SIP book.');
+    chart('c3', 'insC3', { type:'line', data:{ labels, datasets:[
+      { label:'Actual', data: rows.map(r => r.act.sipBook), borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
+      commitLine('Projected', rows.map(r => r.com ? r.com.sipBook : null)) ] }, options: opts(inrShort, legend()) });
+
+    // 4. MF net sales
+    setHead(4, `MF net sales per ${unit}`, 'Actual MF net sales (incl. lumpsum) against the projection.');
+    chart('c4', 'insC4', { type:'bar', data:{ labels, datasets:[ commitLine('Projected', rows.map(r => r.com ? r.com.netSales : null)),
+      { label:'Actual', _noLegend:true, data: rows.map(r => r.act.netSales), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.netSales, r => r.com.netSales) } ] },
+      options: opts(inrShort, legend([swatch('Actual: met', MET), swatch('Actual: missed', MISS)])) });
+  }
+
+  /* ---------- summary: short and crisp ---------- */
+  // 0–199% as a percentage; 2× and above as a multiple, so huge overshoots stay readable
+  const ratioTxt = (a, c) => { const p = a / c * 100; return p >= 1000 ? 'over 10×' : p >= 200 ? `${(p / 100).toFixed(1)}×` : `${Math.round(p)}%`; };
+  const planWord = p => p >= 100 ? 'on or above plan' : p >= 75 ? 'slightly below plan' : 'well below plan';
+  function sumRows(rows){
+    const wc = rows.filter(r => r.com);
+    return { n: wc.length, newA: wc.reduce((s, r) => s + r.act.newClients, 0), newC: wc.reduce((s, r) => s + r.com.newClients, 0),
+             netA: wc.reduce((s, r) => s + r.act.netSales, 0), netC: wc.reduce((s, r) => s + r.com.netSales, 0) };
+  }
+  function renderSummary(){
+    const box = $('insSummary'), m = monthlyRows();
+    if (!m.length){ box.innerHTML = '<h3>Summary <span class="chip na">No actuals yet</span></h3><ul><li>' + (isPartnerMode() ? 'No business has been recorded for you yet.' : DATA.agg ? 'No actuals recorded for this selection yet.' : 'Save this month\'s actuals above to see how the partner is tracking.') + '</li></ul>'; return; }
+    const last = m[m.length - 1], a = last.act, c = last.com, M = monthShort(last.key);
+    const pct = (x, y) => y > 0 ? x / y * 100 : null;
+    const metrics = c ? [
+      { name:'new clients', p: pct(a.newClients, c.newClients) },
+      { name:'SIP book',    p: pct(a.sipBook, c.sipBook) },
+      { name:'MF net sales', p: pct(a.netSales, c.netSales) }
+    ].filter(x => x.p != null) : [];
+
+    // Status uses the same three metrics as the focus line, so the two always agree
+    const lo = metrics.length ? Math.min(...metrics.map(x => x.p)) : null;
+    const chip = lo == null ? ['na', 'No commitment to compare'] : lo >= 100 ? ['good', 'On track'] : lo >= 75 ? ['mid', 'Close to commitment'] : ['low', 'Behind commitment'];
+
+    const pts = [];
+    if (c){
+      pts.push(`${M} new clients: ${fmtCount(a.newClients)} vs ${fmtCount(c.newClients)} committed${c.newClients > 0 ? ` (${ratioTxt(a.newClients, c.newClients)})` : ''}.`);
+      if (c.sipBook > 0) pts.push(`SIP book: ${inr(a.sipBook)} vs ${inr(c.sipBook)} projected (${ratioTxt(a.sipBook, c.sipBook)}), ${planWord(a.sipBook / c.sipBook * 100)}.`);
+      const d = a.netSales - c.netSales;
+      pts.push(`MF net sales: ${signedInr(a.netSales)} vs ${signedInr(c.netSales)} projected, ${d >= 0 ? 'ahead by' : 'short by'} ${inr(Math.abs(d))}.`);
+    } else pts.push(`${M}: ${fmtCount(a.newClients)} new clients, SIP book ${inr(a.sipBook)}, MF net sales ${signedInr(a.netSales)}. No projection covers this month.`);
+
+    const q = fyQuarter(last.key), Q = sumRows(m.filter(r => fyQuarter(r.key).key === q.key));
+    if (Q.n && Q.newC > 0) pts.push(`${q.label} so far: ${fmtCount(Q.newA)} of ${fmtCount(Q.newC)} committed new clients (${ratioTxt(Q.newA, Q.newC)}); MF net sales ${signedInr(Q.netA)} vs ${signedInr(Q.netC)} projected.`);
+    const fy = fyOf(last.key), F = sumRows(m.filter(r => fyOf(r.key) === fy));
+    if (F.n > Q.n && F.newC > 0) pts.push(`FY${String(fy).slice(2)} to date: ${fmtCount(F.newA)} of ${fmtCount(F.newC)} committed new clients (${ratioTxt(F.newA, F.newC)}).`);
+
+    const wc = m.filter(r => r.com && r.com.newClients > 0);
+    if (wc.length >= 2){
+      let streak = 0; for (let i = wc.length - 1; i >= 0 && wc[i].act.newClients < wc[i].com.newClients; i--) streak++;
+      const met = wc.filter(r => r.act.newClients >= r.com.newClients).length;
+      pts.push(streak >= 2 ? `New-client commitment missed ${streak} months in a row.` : `New-client commitment met in ${met} of ${wc.length} months.`);
+    }
+    const recent = m.slice(-3), tot = k => recent.reduce((s, r) => s + r.act[k], 0);
+    const xs = [['life', tot('life')], ['health', tot('health')], ['PMS', tot('pms')], ['demat', tot('demat')]].filter(x => x[1] > 0);
+    pts.push(xs.length ? `Cross-sell, last ${recent.length} month${recent.length > 1 ? 's' : ''}: ${xs.map(x => `${fmtCount(x[1])} ${x[0]}`).join(', ')}.`
+                       : `No cross-sell in the last ${recent.length} month${recent.length > 1 ? 's' : ''}.`);
+
+    // Focus: the weakest metric below plan; otherwise flag targets set too low; otherwise keep going
+    let focus = '';
+    const below = metrics.filter(x => x.p < 100).sort((x, y) => x.p - y.p);
+    if (below.length) focus = `Focus next month: ${below[0].name} (${Math.round(below[0].p)}% of plan).`;
+    else if (metrics.some(x => x.p >= 200)) focus = 'All commitments beaten by a wide margin. The targets look too low: ask the partner for a fresh projection.';
+    else if (metrics.length) focus = xs.length ? 'All commitments met this month. Keep the momentum.' : 'All commitments met. Next: start cross-sell conversations.';
+    box.innerHTML = `<h3>Summary <span class="chip ${chip[0]}">${chip[1]}</span></h3><ul>${pts.slice(0, 6).map(p => `<li>${esc(p)}</li>`).join('')}</ul>${focus ? `<div class="focus">${esc(focus)}</div>` : ''}`;
+  }
+
+
+  /* ================= FILTERS: Cluster → Branch → RM → Partner (one review for the selection) ================= */
+  let TEAM = null;
+  const tf = { cluster:'', branch:'', rm:'', partner:'' };
+  const NONE_C = 'No cluster', NONE_B = 'No branch';
+  const me = () => ((window.APP_USER && APP_USER.user && APP_USER.user.email) || '').toLowerCase();
+
+  function prepTeam(j){
+    const people = j.people || {};
+    const norm = (list, kind) => latestByMonth((list || []).map((r, i) => ({ ...r, id: r.id || (kind + i + '-' + Math.random()),
+      month: normMonth(kind === 's' ? r.targetMonth : r.salesMonth), entry: String(r.entryDate || '') })).filter(r => r.month));
+    return { partners: (j.partners || []).map(p => {
+      const who = people[p.rm] || {};
+      return { email: p.email, rm: p.rm, rmName: who.name || p.rm, branch: who.branch || NONE_B, cluster: who.cluster || NONE_C,
+               subs: norm(p.subs, 's'), sales: norm(p.sales, 'a') };
+    }) };
+  }
+  const inScope = () => TEAM.partners.filter(p => (!tf.cluster || p.cluster === tf.cluster) && (!tf.branch || p.branch === tf.branch) && (!tf.rm || p.rm === tf.rm));
+  function fillFilters(){
+    const opts = (sel, items, cur, all) => { $(sel).innerHTML = `<option value="">${all}</option>` + items.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join(''); };
+    const uniq = arr => [...new Set(arr)].sort();
+    const P = TEAM.partners;
+    opts('tfCluster', uniq(P.map(p => p.cluster)).map(c => [c, c]), tf.cluster, 'All clusters');
+    const inC = P.filter(p => !tf.cluster || p.cluster === tf.cluster);
+    opts('tfBranch', uniq(inC.map(p => p.branch)).map(b => [b, b]), tf.branch, 'All branches');
+    const inB = inC.filter(p => !tf.branch || p.branch === tf.branch), rms = {};
+    inB.forEach(p => rms[p.rm] = p.rmName);
+    opts('tfRm', Object.keys(rms).sort((a, b) => rms[a].localeCompare(rms[b])).map(r => [r, rms[r]]), tf.rm, 'All RMs');
+    const title = String((window.APP_USER && APP_USER.user && APP_USER.user.title) || '');
+    const isRm = /^(rm|relationship manager)$/i.test(title.trim()) || (P.length > 0 && P.every(p => p.rm === me()));
+    $('tfRm').closest('label').hidden = isRm;
+    const list = inScope();
+    if (tf.partner && !list.some(p => p.email === tf.partner)) tf.partner = '';
+    opts('tfPartner', list.map(p => [p.email, `${p.email}  ·  ${p.rm === me() ? 'yours' : 'view only'}`]), tf.partner, `All partners (${list.length})`);
+  }
+  function selectionLabel(){
+    const parts = [tf.cluster, tf.branch, tf.rm && (TEAM.partners.find(p => p.rm === tf.rm) || {}).rmName].filter(Boolean);
+    return parts.length ? parts.join(' · ') : 'All partners';
+  }
+  // Put the selection into DATA: one partner, or a group (totals built month by month)
+  function applySelection(){
+    const list = inScope();
+    if (tf.partner){
+      const p = list.find(x => x.email === tf.partner);
+      partner = p.email;
+      DATA = { subs: p.subs, sales: p.sales, all: p.subs, canEdit: p.rm === me(), owner: p.rm, agg: null };
+    } else {
+      partner = '';
+      DATA = { subs: [], sales: [], all: [], canEdit: false, owner: '', agg: list };
+    }
+    $('insBody').hidden = false;
+    renderHead();
+    $('salesCard').hidden = !DATA.canEdit;
+    if (DATA.canEdit){ if (!$('sMonth').value) $('sMonth').value = istMonthValue(); prefillSales(); }
+    showResults(false);
+  }
+  async function loadInsights(force){
+    if (TEAM && !force){ fillFilters(); applySelection(); return; }
+    $('teamNote').textContent = 'Loading your partners…'; $('teamNote').hidden = false; $('teamNote').className = 'team-note';
+    try{
+      let j, legacy = false;
+      try { j = await api('team', {}); }
+      catch(e){
+        if (!/valid partner email/i.test(e.message)) throw e;
+        j = await legacyTeam(); legacy = true;            // older Apps Script: build the list partner by partner
+      }
+      TEAM = prepTeam(j);
+      $('teamNote').hidden = !legacy;
+      if (legacy){ $('teamNote').className = 'team-note info';
+        $('teamNote').textContent = 'Showing your partners. Branch and Cluster grouping will appear once the latest Code.gs (' + MIN_BACKEND + ') is deployed.'; }
+      if (TEAM.partners.length === 1) tf.partner = TEAM.partners[0].email;   // only one partner: open it directly
+      fillFilters(); applySelection();
+    } catch(e){
+      $('insBody').hidden = true;
+      $('teamNote').textContent = 'Couldn\'t load partners: ' + e.message;
+      liveVersion().then(v => { if (v && v < MIN_BACKEND) $('teamNote').textContent += ` (live Apps Script version: ${v}; this page needs ${MIN_BACKEND}. Paste the latest Code.gs and deploy a New version on both deployments.)`; });
+    }
+  }
+  // Older Apps Script without the team request: use "my partners" + one request per partner
+  async function legacyTeam(){
+    const list = (await api('myPartners', {})).partners || [], out = [];
+    for (let i = 0; i < list.length; i += 5){
+      const got = await Promise.all(list.slice(i, i + 5).map(p => api('partner', { email: p.email })
+        .then(r => ({ email: p.email, rm: p.rm, subs: r.submissions || [], sales: r.sales || [] })).catch(() => null)));
+      out.push(...got.filter(Boolean));
+    }
+    return { partners: out, people: {} };
+  }
+  async function liveVersion(){
+    try { if (ON_APPS_SCRIPT || !SHEETS_ENDPOINT) return '';
+          const r = await fetch(SHEETS_ENDPOINT + (SHEETS_ENDPOINT.includes('?') ? '&' : '?') + 'ping=1'); return String((await r.json()).backend || 'unknown'); }
+    catch(_) { return ''; }
+  }
+  function wireFilters(){
+    const on = (id, fn) => $(id).addEventListener('change', e => { fn(e.target.value); fillFilters(); applySelection(); });
+    on('tfCluster', v => { tf.cluster = v; tf.branch = ''; tf.rm = ''; tf.partner = ''; });
+    on('tfBranch', v => { tf.branch = v; tf.rm = ''; tf.partner = ''; });
+    on('tfRm', v => { tf.rm = v; tf.partner = ''; });
+    on('tfPartner', v => { tf.partner = v; });
+    $('tfRefresh').addEventListener('click', () => loadInsights(true));
+  }
+
+  /* ---------- tabs & wiring ---------- */
+  function showTab(tab){
+    const ins = tab === 'insights';
+    document.querySelector('.layout').hidden = ins;
+    $('insightsView').hidden = !ins;
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    window.scrollTo(0, 0);
+    if (ins && isPartnerMode()){ if (partner) showResults(); return; }   // partners: their own review only
+    if (ins) loadInsights();
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    wireFilters();
+    $('insChange').addEventListener('click', () => { tf.partner = ''; if (TEAM){ fillFilters(); applySelection(); } });
+    $('insRefresh').addEventListener('click', async () => {
+      try { await loadPartner(partner); renderHead(); prefillSales(); if (!$('insResult').hidden) showResults(); toast('Refreshed.'); }
+      catch(e){ toast(e.message, true); }
+    });
+    $('sMonth').addEventListener('change', prefillSales);
+    $('salesSubmit').addEventListener('click', submitSales);
+    document.addEventListener('app:login', () => { if (!$('insightsView').hidden) loadInsights(true); });
+    $('salesSkip').addEventListener('click', showResults);
+    $('insPdf').addEventListener('click', downloadReviewPdf);
+    $('insView').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      view = b.dataset.v; [...$('insView').children].forEach(x => x.classList.toggle('on', x === b));
+      renderTable(); renderCharts();
+    });
+  });
+})();
+</script>
+</body>
+</html>
