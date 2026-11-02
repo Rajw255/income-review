@@ -487,7 +487,7 @@
       <div class="field " id="f-startAum"><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
       <div class="field mode-amount" id="f-sipBook0"><label for="sipBook0">Current SIP book / month</label><div class="inbox"><span class="pre">₹</span><input id="sipBook0" type="number" min="0" step="1000"></div></div>
       <div class="field mode-client" id="f-newClients"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
-      <div class="field mode-client" id="f-clientCap"><label for="clientCap" title="Maximum clients the partner wants to manage. New clients stop once reached. Blank or 0 = no cap.">Client cap <small style="color:var(--muted)">(blank = no cap)</small></label><div class="inbox"><input id="clientCap" type="number" min="0" step="10"></div></div>
+      <div class="field mode-client" id="f-clientCap"><label for="clientCap" title="The most clients the partner wants to manage. New clients stop once this is reached. Blank or 0 = no limit.">Max clients to manage <small style="color:var(--muted)">(blank = no limit)</small></label><div class="inbox"><input id="clientCap" type="number" min="0" step="10"></div></div>
       <div class="field mode-client" id="f-sip"><label for="sip">SIP / new client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
       <div class="field mode-client" id="f-lump"><label for="lump">Lumpsum / new client <small style="color:var(--muted)">(one-time)</small></label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
       <div class="field mode-amount" id="f-newSip"><label for="newSip">New SIP business / month</label><div class="inbox"><span class="pre">₹</span><input id="newSip" type="number" min="0" step="1000"></div></div>
@@ -522,6 +522,7 @@
     </div>
 
     <div id="fieldStore" hidden></div>
+    <p class="hint" id="hintBg">Also applied: SIP and lumpsum per new client grow 10% a quarter, the rate falling 20% each year; max SIP ₹10L per new client, max lumpsum ₹5 Cr a month.</p>
     <p class="hint" id="hintStep">Step-up lasts = years each client keeps stepping up their SIP. Blank = every year, 0 = no step-up.</p>
 
     <div class="panel">
@@ -779,6 +780,8 @@ const DEFAULTS = {
 };
 // Inputs where blank means "not set" (no cap / default), as in the Excel
 const OPTIONAL = ['clientCap', 'every', 'fade', 'stepYears', 'sipCap', 'lumpCap'];
+// Client-based: these aren't asked for; they run in the background with the client Excel's values
+const CLIENT_BG = { inc:10, every:3, fade:20, sipCap:1000000, lumpCap:50000000 };
 const $ = id => document.getElementById(id);
 const PAL = { b900:'#1b2f4b', b800:'#243b5e', b700:'#2f4b75', b600:'#3a5f8f', b500:'#4f77a8', b400:'#7096c2', b300:'#9bb6d6', b200:'#c5d5e8', b100:'#e3ebf5' };
 
@@ -836,6 +839,7 @@ function readParams(){
   p.sipStop = Math.min(p.sipStop, 100);
   if (p.stepYears !== null) p.stepYears = Math.min(p.stepYears, 25);
   p.mode = p.mode === 'amount' ? 'amount' : 'client';
+  if (p.mode === 'client') Object.assign(p, CLIENT_BG);
   return p;
 }
 function applyDefaults(){
@@ -848,10 +852,9 @@ function applyDefaults(){
 const MODE_HINT = { client:'Business from clients: new clients × SIP and lumpsum per client.',
                     amount:'Business in value: ₹ SIP and ₹ lumpsum per month.' };
 const LAYOUT = {
-  client: [ ['Book & monthly targets', ['startClients','startAum','newClients','clientCap','sip','inc','every','fade','hintFade','sipStep','lump','red','activeYears']],
+  client: [ ['Book & monthly targets', ['startClients','startAum','newClients','clientCap','sip','sipStep','lump','red','activeYears','hintBg']],
             ['Assumptions', ['trail','cagr']],
-            ['SIP behaviour', ['sipStop','stepYears','hintStep']],
-            ['Optional limits', ['sipCap','lumpCap']] ],
+            ['SIP behaviour', ['sipStop','stepYears','hintStep']] ],
   amount: [ ['Book & monthly targets', ['startAum','sipBook0','newSip','newLump','sipYears','lumpYears']],
             ['Business growth', ['inc','every','fade','hintFade']],
             ['SIP behaviour & market', ['sipStep','stepYears','hintStep','sipStop','red','trail','cagr']],
@@ -860,9 +863,10 @@ const LAYOUT = {
 function placeFields(m){
   const store = $('fieldStore'), el = id => $('f-' + id) || $(id);
   ['A','B','C','D'].forEach(k => $('pnl' + k).querySelectorAll('.field, .hint').forEach(x => store.appendChild(x)));
+  ['A','B','C','D'].forEach(k => $('pnl' + k).hidden = true);
   LAYOUT[m].forEach(([title, list], i) => {
     const k = 'ABCD'[i], panel = $('pnl' + k);
-    $('pnl' + k + 'T').textContent = title;
+    panel.hidden = false; $('pnl' + k + 'T').textContent = title;
     list.forEach(id => { const x = el(id); if (x) panel.appendChild(x); });
   });
 }
