@@ -523,6 +523,7 @@
 
     <div id="fieldStore" hidden></div>
     <p class="hint" id="hintBg">Also applied: SIP and lumpsum per new client grow 10% a quarter, the rate falling 20% each year; max SIP ₹10L per new client, max lumpsum ₹5 Cr a month.</p>
+    <p class="hint" id="hintBgAmt">Also applied: monthly SIP and lumpsum business grow 10% a quarter, the rate falling 20% each year.</p>
     <p class="hint" id="hintStep">Step-up lasts = years each client keeps stepping up their SIP. Blank = every year, 0 = no step-up.</p>
 
     <div class="panel">
@@ -782,6 +783,8 @@ const DEFAULTS = {
 const OPTIONAL = ['clientCap', 'every', 'fade', 'stepYears', 'sipCap', 'lumpCap'];
 // Client-based: these aren't asked for; they run in the background with the client Excel's values
 const CLIENT_BG = { inc:10, every:3, fade:20, sipCap:1000000, lumpCap:50000000 };
+// Both methods: business growth runs in the background (10% per quarter, rate falling 20% a year)
+const GROWTH_BG = { inc:10, every:3, fade:20 };
 const $ = id => document.getElementById(id);
 const PAL = { b900:'#1b2f4b', b800:'#243b5e', b700:'#2f4b75', b600:'#3a5f8f', b500:'#4f77a8', b400:'#7096c2', b300:'#9bb6d6', b200:'#c5d5e8', b100:'#e3ebf5' };
 
@@ -839,7 +842,7 @@ function readParams(){
   p.sipStop = Math.min(p.sipStop, 100);
   if (p.stepYears !== null) p.stepYears = Math.min(p.stepYears, 25);
   p.mode = p.mode === 'amount' ? 'amount' : 'client';
-  if (p.mode === 'client') Object.assign(p, CLIENT_BG);
+  Object.assign(p, p.mode === 'client' ? CLIENT_BG : GROWTH_BG);
   return p;
 }
 function applyDefaults(){
@@ -855,8 +858,7 @@ const LAYOUT = {
   client: [ ['Book & monthly targets', ['startClients','startAum','newClients','clientCap','sip','sipStep','lump','red','activeYears','hintBg']],
             ['Assumptions', ['trail','cagr']],
             ['SIP behaviour', ['sipStop','stepYears','hintStep']] ],
-  amount: [ ['Book & monthly targets', ['startAum','sipBook0','newSip','newLump','sipYears','lumpYears']],
-            ['Business growth', ['inc','every','fade','hintFade']],
+  amount: [ ['Book & monthly targets', ['startAum','sipBook0','newSip','newLump','sipYears','lumpYears','hintBgAmt']],
             ['SIP behaviour & market', ['sipStep','stepYears','hintStep','sipStop','red','trail','cagr']],
             ['Optional limits', ['sipCap','lumpCap']] ]
 };
