@@ -481,45 +481,48 @@
       <input type="hidden" id="mode">
     </div>
 
-    <div class="panel">
-      <div class="panel-title"><span>Book &amp; monthly targets</span></div>
-      <div class="field mode-client"><label for="startClients">Starting clients</label><div class="inbox"><input id="startClients" type="number" min="0" step="1"></div></div>
-      <div class="field "><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
-      <div class="field mode-amount"><label for="sipBook0">Current SIP book / month</label><div class="inbox"><span class="pre">₹</span><input id="sipBook0" type="number" min="0" step="1000"></div></div>
-      <div class="field mode-client"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
-      <div class="field mode-client"><label for="clientCap" title="Maximum clients the partner wants to manage. New clients stop once reached. Blank or 0 = no cap.">Client cap <small style="color:var(--muted)">(blank = no cap)</small></label><div class="inbox"><input id="clientCap" type="number" min="0" step="10"></div></div>
-      <div class="field mode-client"><label for="sip">SIP / new client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
-      <div class="field mode-client"><label for="lump">Lumpsum / new client <small style="color:var(--muted)">(one-time)</small></label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
-      <div class="field mode-amount"><label for="newSip">New SIP business / month</label><div class="inbox"><span class="pre">₹</span><input id="newSip" type="number" min="0" step="1000"></div></div>
-      <div class="field mode-amount"><label for="newLump">Lumpsum business / month</label><div class="inbox"><span class="pre">₹</span><input id="newLump" type="number" min="0" step="10000"></div></div>
-      <div class="field mode-client"><label for="activeYears">Active years (effort)</label><div class="inbox"><input id="activeYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
-      <div class="field mode-amount"><label for="sipYears">New SIP sourcing stops after</label><div class="inbox"><input id="sipYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
-      <div class="field mode-amount"><label for="lumpYears">Lumpsum sourcing stops after</label><div class="inbox"><input id="lumpYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+    <div class="panel" id="pnlA">
+      <div class="panel-title"><span id="pnlAT">Book &amp; monthly targets</span></div>
+      <div class="field mode-client" id="f-startClients"><label for="startClients">Starting clients</label><div class="inbox"><input id="startClients" type="number" min="0" step="1"></div></div>
+      <div class="field " id="f-startAum"><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
+      <div class="field mode-amount" id="f-sipBook0"><label for="sipBook0">Current SIP book / month</label><div class="inbox"><span class="pre">₹</span><input id="sipBook0" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-client" id="f-newClients"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
+      <div class="field mode-client" id="f-clientCap"><label for="clientCap" title="Maximum clients the partner wants to manage. New clients stop once reached. Blank or 0 = no cap.">Client cap <small style="color:var(--muted)">(blank = no cap)</small></label><div class="inbox"><input id="clientCap" type="number" min="0" step="10"></div></div>
+      <div class="field mode-client" id="f-sip"><label for="sip">SIP / new client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
+      <div class="field mode-client" id="f-lump"><label for="lump">Lumpsum / new client <small style="color:var(--muted)">(one-time)</small></label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-amount" id="f-newSip"><label for="newSip">New SIP business / month</label><div class="inbox"><span class="pre">₹</span><input id="newSip" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-amount" id="f-newLump"><label for="newLump">Lumpsum business / month</label><div class="inbox"><span class="pre">₹</span><input id="newLump" type="number" min="0" step="10000"></div></div>
+      <div class="field mode-client" id="f-activeYears"><label for="activeYears">Active years (effort)</label><div class="inbox"><input id="activeYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field mode-amount" id="f-sipYears"><label for="sipYears">New SIP sourcing stops after</label><div class="inbox"><input id="sipYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field mode-amount" id="f-lumpYears"><label for="lumpYears">Lumpsum sourcing stops after</label><div class="inbox"><input id="lumpYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title"><span>Business growth</span></div>
-      <div class="field "><label for="inc" title="Growth of SIP and lumpsum per new client (client-based) or of monthly business (amount-based), applied every period.">Business increase per period <small style="color:var(--muted)">(Year 1)</small></label><div class="inbox"><input id="inc" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field "><label for="every">Increase every <small style="color:var(--muted)">(blank = 3)</small></label><div class="inbox"><input id="every" type="number" min="0" step="1"><span class="suf">months</span></div></div>
-      <div class="field "><label for="fade" title="Each year the increase rate falls by this %. 20% → 10%, 8%, 6.4% … per period. Never reaches zero.">Growth drops by <small style="color:var(--muted)">(per year)</small></label><div class="inbox"><input id="fade" type="number" min="0" step="5"><span class="suf">%</span></div></div>
-      <p class="hint">Rate in year y = increase × (1 − drop)^(y − 1).</p>
+    <div class="panel" id="pnlB">
+      <div class="panel-title"><span id="pnlBT">Business growth</span></div>
+      <div class="field " id="f-inc"><label for="inc" title="Growth of SIP and lumpsum per new client (client-based) or of monthly business (amount-based), applied every period.">Business increase per period <small style="color:var(--muted)">(Year 1)</small></label><div class="inbox"><input id="inc" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field " id="f-every"><label for="every">Increase every <small style="color:var(--muted)">(blank = 3)</small></label><div class="inbox"><input id="every" type="number" min="0" step="1"><span class="suf">months</span></div></div>
+      <div class="field " id="f-fade"><label for="fade" title="Each year the increase rate falls by this %. 20% → 10%, 8%, 6.4% … per period. Never reaches zero.">Growth drops by <small style="color:var(--muted)">(per year)</small></label><div class="inbox"><input id="fade" type="number" min="0" step="5"><span class="suf">%</span></div></div>
+      <p class="hint" id="hintFade">Rate in year y = increase × (1 − drop)^(y − 1).</p>
     </div>
 
-    <div class="panel">
-      <div class="panel-title"><span>SIP behaviour &amp; market</span></div>
-      <div class="field "><label for="sipStep">SIP step-up p.a.</label><div class="inbox"><input id="sipStep" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field "><label for="stepYears">Step-up lasts <small style="color:var(--muted)">(blank = every year, 0 = none)</small></label><div class="inbox"><input id="stepYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
-      <div class="field "><label for="sipStop">SIPs stopping per year</label><div class="inbox"><input id="sipStop" type="number" min="0" step="0.5" max="100"><span class="suf">%</span></div></div>
-      <div class="field "><label for="red">Annual redemption <small style="color:var(--muted)">(% of AUM)</small></label><div class="inbox"><input id="red" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field "><label for="trail">Trail rate p.a.</label><div class="inbox"><input id="trail" type="number" min="0" step="0.05"><span class="suf">%</span></div></div>
-      <div class="field "><label for="cagr">Market CAGR p.a.</label><div class="inbox"><input id="cagr" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+    <div class="panel" id="pnlC">
+      <div class="panel-title"><span id="pnlCT">SIP behaviour &amp; market</span></div>
+      <div class="field " id="f-sipStep"><label for="sipStep">SIP step-up p.a.</label><div class="inbox"><input id="sipStep" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field " id="f-stepYears"><label for="stepYears">Step-up lasts <small style="color:var(--muted)">(blank = every year, 0 = none)</small></label><div class="inbox"><input id="stepYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field " id="f-sipStop"><label for="sipStop">SIPs stopping per year</label><div class="inbox"><input id="sipStop" type="number" min="0" step="0.5" max="100"><span class="suf">%</span></div></div>
+      <div class="field " id="f-red"><label for="red">Annual redemption <small style="color:var(--muted)">(% of AUM)</small></label><div class="inbox"><input id="red" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field " id="f-trail"><label for="trail">Trail rate p.a.</label><div class="inbox"><input id="trail" type="number" min="0" step="0.05"><span class="suf">%</span></div></div>
+      <div class="field " id="f-cagr"><label for="cagr">Market CAGR p.a.</label><div class="inbox"><input id="cagr" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title"><span>Optional limits</span><small>Blank = no cap</small></div>
-      <div class="field "><label for="sipCap"><span class="mode-client-i">Max SIP per new client</span><span class="mode-amount-i">Max new SIP / month</span></label><div class="inbox"><span class="pre">₹</span><input id="sipCap" type="number" min="0" step="1000"></div></div>
-      <div class="field "><label for="lumpCap">Max lumpsum / month</label><div class="inbox"><span class="pre">₹</span><input id="lumpCap" type="number" min="0" step="10000"></div></div>
+    <div class="panel" id="pnlD">
+      <div class="panel-title"><span id="pnlDT">Optional limits</span><small>Blank = no cap</small></div>
+      <div class="field " id="f-sipCap"><label for="sipCap"><span class="mode-client-i">Max SIP per new client</span><span class="mode-amount-i">Max new SIP / month</span></label><div class="inbox"><span class="pre">₹</span><input id="sipCap" type="number" min="0" step="1000"></div></div>
+      <div class="field " id="f-lumpCap"><label for="lumpCap">Max lumpsum / month</label><div class="inbox"><span class="pre">₹</span><input id="lumpCap" type="number" min="0" step="10000"></div></div>
     </div>
+
+    <div id="fieldStore" hidden></div>
+    <p class="hint" id="hintStep">Step-up lasts = years each client keeps stepping up their SIP. Blank = every year, 0 = no step-up.</p>
 
     <div class="panel">
       <div class="panel-title"><span>Cross-sell income</span><small>Toggle to add</small></div>
@@ -844,9 +847,29 @@ function applyDefaults(){
 }
 const MODE_HINT = { client:'Business from clients: new clients × SIP and lumpsum per client.',
                     amount:'Business in value: ₹ SIP and ₹ lumpsum per month.' };
+const LAYOUT = {
+  client: [ ['Book & monthly targets', ['startClients','startAum','newClients','clientCap','sip','inc','every','fade','hintFade','sipStep','lump','red','activeYears']],
+            ['Assumptions', ['trail','cagr']],
+            ['SIP behaviour', ['sipStop','stepYears','hintStep']],
+            ['Optional limits', ['sipCap','lumpCap']] ],
+  amount: [ ['Book & monthly targets', ['startAum','sipBook0','newSip','newLump','sipYears','lumpYears']],
+            ['Business growth', ['inc','every','fade','hintFade']],
+            ['SIP behaviour & market', ['sipStep','stepYears','hintStep','sipStop','red','trail','cagr']],
+            ['Optional limits', ['sipCap','lumpCap']] ]
+};
+function placeFields(m){
+  const store = $('fieldStore'), el = id => $('f-' + id) || $(id);
+  ['A','B','C','D'].forEach(k => $('pnl' + k).querySelectorAll('.field, .hint').forEach(x => store.appendChild(x)));
+  LAYOUT[m].forEach(([title, list], i) => {
+    const k = 'ABCD'[i], panel = $('pnl' + k);
+    $('pnl' + k + 'T').textContent = title;
+    list.forEach(id => { const x = el(id); if (x) panel.appendChild(x); });
+  });
+}
 function syncMode(){
   const m = $('mode').value === 'amount' ? 'amount' : 'client';
   document.body.dataset.calc = m;
+  placeFields(m);
   document.querySelectorAll('.method-tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('modeHint').textContent = MODE_HINT[m];
 }
