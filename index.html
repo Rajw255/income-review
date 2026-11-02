@@ -329,6 +329,14 @@
   .ins-note{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.5}
   .empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
   .ins .charts{margin-top:14px}
+  .method-tabs{display:flex;background:var(--b50);border:1px solid var(--b100);border-radius:999px;padding:3px;margin:2px 0 8px}
+  .method-tabs button{flex:1;border:0;background:transparent;border-radius:999px;padding:7px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--b700);cursor:pointer}
+  .method-tabs button.on{background:var(--b900);color:#fff}
+  body[data-calc="client"] .mode-amount, body[data-calc="amount"] .mode-client,
+  body[data-calc="client"] .mode-amount-i, body[data-calc="amount"] .mode-client-i{display:none!important}
+  .proj-view{display:inline-flex;border:1px solid var(--b200);border-radius:8px;overflow:hidden;margin-left:auto}
+  .proj-view button{border:0;background:#fff;padding:5px 12px;font:inherit;font-size:12px;color:var(--b700);cursor:pointer}
+  .proj-view button.on{background:var(--b900);color:#fff}
   .ins-filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
   .ins-filters label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--b700)}
   .ins-filters label.wide select{min-width:280px}
@@ -467,30 +475,50 @@
     </div>
 
     <div class="panel">
+      <div class="panel-title"><span>Projection method</span></div>
+      <div class="method-tabs" role="tablist"><button type="button" data-mode="client" class="on">Client-based</button><button type="button" data-mode="amount">Amount-based</button></div>
+      <p class="hint" id="modeHint"></p>
+      <input type="hidden" id="mode">
+    </div>
+
+    <div class="panel">
       <div class="panel-title"><span>Book &amp; monthly targets</span></div>
-      <p class="hint">New clients and SIP are your monthly target.</p>
-      <div class="field"><label for="startClients">Starting clients</label><div class="inbox"><input id="startClients" type="number" min="0" step="1"></div></div>
-      <div class="field"><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
-      <div class="field"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
-      <div class="field"><label for="sip">SIP / client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
-      <div class="field"><label for="sipInc" title="Each year, new clients start with a higher SIP. Year 1 joiners start at the SIP above; Year 2 joiners at SIP × (1 + this %), and so on.">Base SIP increase p.a. <small style="color:var(--muted)">(new clients)</small></label><div class="inbox"><input id="sipInc" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field"><label for="sipStep">SIP step-up p.a.</label><div class="inbox"><input id="sipStep" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field"><label for="lump">Annual lumpsum / client</label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
-      <div class="field"><label for="red">Annual redemption</label><div class="inbox"><input id="red" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field"><label for="activeYears">Active years (effort)</label><div class="inbox"><input id="activeYears" type="number" min="0" max="25" step="1"><span class="suf">yrs</span></div></div>
+      <div class="field mode-client"><label for="startClients">Starting clients</label><div class="inbox"><input id="startClients" type="number" min="0" step="1"></div></div>
+      <div class="field "><label for="startAum">Starting AUM</label><div class="inbox"><input id="startAum" type="number" min="0" step="0.1"><span class="suf">Cr</span></div></div>
+      <div class="field mode-amount"><label for="sipBook0">Current SIP book / month</label><div class="inbox"><span class="pre">₹</span><input id="sipBook0" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-client"><label for="newClients">New clients / month</label><div class="inbox"><input id="newClients" type="number" min="0" step="1"></div></div>
+      <div class="field mode-client"><label for="clientCap" title="Maximum clients the partner wants to manage. New clients stop once reached. Blank or 0 = no cap.">Client cap <small style="color:var(--muted)">(blank = no cap)</small></label><div class="inbox"><input id="clientCap" type="number" min="0" step="10"></div></div>
+      <div class="field mode-client"><label for="sip">SIP / new client / month</label><div class="inbox"><span class="pre">₹</span><input id="sip" type="number" min="0" step="500"></div></div>
+      <div class="field mode-client"><label for="lump">Lumpsum / new client <small style="color:var(--muted)">(one-time)</small></label><div class="inbox"><span class="pre">₹</span><input id="lump" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-amount"><label for="newSip">New SIP business / month</label><div class="inbox"><span class="pre">₹</span><input id="newSip" type="number" min="0" step="1000"></div></div>
+      <div class="field mode-amount"><label for="newLump">Lumpsum business / month</label><div class="inbox"><span class="pre">₹</span><input id="newLump" type="number" min="0" step="10000"></div></div>
+      <div class="field mode-client"><label for="activeYears">Active years (effort)</label><div class="inbox"><input id="activeYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field mode-amount"><label for="sipYears">New SIP sourcing stops after</label><div class="inbox"><input id="sipYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field mode-amount"><label for="lumpYears">Lumpsum sourcing stops after</label><div class="inbox"><input id="lumpYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
     </div>
 
     <div class="panel">
-      <div class="panel-title"><span>Assumptions</span></div>
-      <div class="field"><label for="trail">Trail rate p.a.</label><div class="inbox"><input id="trail" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field"><label for="cagr">Market CAGR p.a.</label><div class="inbox"><input id="cagr" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="panel-title"><span>Business growth</span></div>
+      <div class="field "><label for="inc" title="Growth of SIP and lumpsum per new client (client-based) or of monthly business (amount-based), applied every period.">Business increase per period <small style="color:var(--muted)">(Year 1)</small></label><div class="inbox"><input id="inc" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field "><label for="every">Increase every <small style="color:var(--muted)">(blank = 3)</small></label><div class="inbox"><input id="every" type="number" min="0" step="1"><span class="suf">months</span></div></div>
+      <div class="field "><label for="fade" title="Each year the increase rate falls by this %. 20% → 10%, 8%, 6.4% … per period. Never reaches zero.">Growth drops by <small style="color:var(--muted)">(per year)</small></label><div class="inbox"><input id="fade" type="number" min="0" step="5"><span class="suf">%</span></div></div>
+      <p class="hint">Rate in year y = increase × (1 − drop)^(y − 1).</p>
     </div>
 
     <div class="panel">
-      <div class="panel-title"><span>SIP behaviour</span></div>
-      <div class="field"><label for="sipStop">SIPs stopping per year</label><div class="inbox"><input id="sipStop" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
-      <div class="field"><label for="stepYears">Step-up lasts</label><div class="inbox"><input id="stepYears" type="number" min="0" max="25" step="1"><span class="suf">yrs</span></div></div>
-      <p class="hint">Step-up lasts = years each client keeps stepping up their SIP. 0 = every year.</p>
+      <div class="panel-title"><span>SIP behaviour &amp; market</span></div>
+      <div class="field "><label for="sipStep">SIP step-up p.a.</label><div class="inbox"><input id="sipStep" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field "><label for="stepYears">Step-up lasts <small style="color:var(--muted)">(blank = every year, 0 = none)</small></label><div class="inbox"><input id="stepYears" type="number" min="0" step="1" max="25"><span class="suf">yrs</span></div></div>
+      <div class="field "><label for="sipStop">SIPs stopping per year</label><div class="inbox"><input id="sipStop" type="number" min="0" step="0.5" max="100"><span class="suf">%</span></div></div>
+      <div class="field "><label for="red">Annual redemption <small style="color:var(--muted)">(% of AUM)</small></label><div class="inbox"><input id="red" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+      <div class="field "><label for="trail">Trail rate p.a.</label><div class="inbox"><input id="trail" type="number" min="0" step="0.05"><span class="suf">%</span></div></div>
+      <div class="field "><label for="cagr">Market CAGR p.a.</label><div class="inbox"><input id="cagr" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Optional limits</span><small>Blank = no cap</small></div>
+      <div class="field "><label for="sipCap"><span class="mode-client-i">Max SIP per new client</span><span class="mode-amount-i">Max new SIP / month</span></label><div class="inbox"><span class="pre">₹</span><input id="sipCap" type="number" min="0" step="1000"></div></div>
+      <div class="field "><label for="lumpCap">Max lumpsum / month</label><div class="inbox"><span class="pre">₹</span><input id="lumpCap" type="number" min="0" step="10000"></div></div>
     </div>
 
     <div class="panel">
@@ -500,7 +528,8 @@
         <div class="xs-head"><div><b>Life insurance</b><small>Commission set by the insurer</small></div>
           <label class="toggle"><input type="checkbox" id="lifeOn" aria-label="Include life insurance"><span></span></label></div>
         <div class="xs-body">
-          <div class="field"><label for="lifePct">% of clients / yr</label><div class="inbox"><input id="lifePct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field mode-amount"><label for="lifeN">Clients / yr</label><div class="inbox"><input id="lifeN" type="number" min="0" step="1"></div></div>
+          <div class="field mode-client"><label for="lifePct">% of clients / yr</label><div class="inbox"><input id="lifePct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
           <div class="field"><label for="lifePrem">Avg. premium</label><div class="inbox"><span class="pre">₹</span><input id="lifePrem" type="number" min="0" step="5000"></div></div>
           <div class="field"><label for="lifeComm">Commission (first year)</label><div class="inbox"><input id="lifeComm" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
           <div class="xs-note" id="lifeNote"></div>
@@ -511,7 +540,8 @@
         <div class="xs-head"><div><b>Health insurance</b><small>Commission set by the insurer</small></div>
           <label class="toggle"><input type="checkbox" id="healthOn" aria-label="Include health insurance"><span></span></label></div>
         <div class="xs-body">
-          <div class="field"><label for="healthPct">% of clients / yr</label><div class="inbox"><input id="healthPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field mode-amount"><label for="healthN">Clients / yr</label><div class="inbox"><input id="healthN" type="number" min="0" step="1"></div></div>
+          <div class="field mode-client"><label for="healthPct">% of clients / yr</label><div class="inbox"><input id="healthPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
           <div class="field"><label for="healthPrem">Avg. premium</label><div class="inbox"><span class="pre">₹</span><input id="healthPrem" type="number" min="0" step="5000"></div></div>
           <div class="field"><label for="healthComm">Commission (first year)</label><div class="inbox"><input id="healthComm" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
           <div class="xs-note" id="healthNote"></div>
@@ -522,7 +552,8 @@
         <div class="xs-head"><div><b>PMS</b><small>1% commission</small></div>
           <label class="toggle"><input type="checkbox" id="pmsOn" aria-label="Include PMS"><span></span></label></div>
         <div class="xs-body">
-          <div class="field"><label for="pmsPct">% of clients / yr</label><div class="inbox"><input id="pmsPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field mode-amount"><label for="pmsN">Clients / yr</label><div class="inbox"><input id="pmsN" type="number" min="0" step="1"></div></div>
+          <div class="field mode-client"><label for="pmsPct">% of clients / yr</label><div class="inbox"><input id="pmsPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
           <div class="field"><label for="pmsInv">Investment (min. ₹50L)</label><div class="inbox"><span class="pre">₹</span><input id="pmsInv" type="number" min="5000000" step="10000"></div></div>
           <div class="xs-note" id="pmsNote"></div>
         </div>
@@ -532,7 +563,8 @@
         <div class="xs-head"><div><b>Demat &amp; broking</b><small>₹210 / active client / month</small></div>
           <label class="toggle"><input type="checkbox" id="dematOn" aria-label="Include demat and broking"><span></span></label></div>
         <div class="xs-body">
-          <div class="field"><label for="dematPct">% of clients active</label><div class="inbox"><input id="dematPct" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field mode-amount"><label for="dematN">Active clients</label><div class="inbox"><input id="dematN" type="number" min="0" step="1"></div></div>
+          <div class="field mode-client"><label for="dematPct">% of clients active</label><div class="inbox"><input id="dematPct" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
           <div class="xs-note" id="dematNote"></div>
         </div>
       </div>
@@ -545,17 +577,17 @@
   <main>
     <div class="kpis">
       <div class="kpi"><div class="k">Target month</div><div class="v" id="gMonth"></div></div>
-      <div class="kpi"><div class="k">New clients / month</div><div class="v"><span id="gClients"></span><span class="s" id="gClientsSub"></span></div></div>
-      <div class="kpi"><div class="k">Fresh SIP book / month</div><div class="v" id="gSip"></div></div>
+      <div class="kpi"><div class="k" id="gClientsK">New clients / month</div><div class="v"><span id="gClients"></span><span class="s" id="gClientsSub"></span></div></div>
+      <div class="kpi"><div class="k" id="gSipK">Fresh SIP book / month</div><div class="v" id="gSip"></div></div>
       <div class="kpi"><div class="k">Income by Year 10</div><div class="v"><span id="gY10"></span><span class="s" id="gY10mo"></span></div></div>
     </div>
 
-    <div class="sec-head"><h2>25-year income projections</h2><span>7 milestones</span></div>
+    <div class="sec-head"><h2>25-year income projections</h2><div class="proj-view" id="projView"><button type="button" data-v="m" class="on">Milestones</button><button type="button" data-v="y">Every year</button></div></div>
     <div class="table-wrap">
       <table class="proj" id="projTable">
         <thead>
           <tr>
-            <th rowspan="2" class="lead">Year</th><th rowspan="2" class="num-lead">Clients</th>
+            <th rowspan="2" class="lead">Year</th><th rowspan="2" class="num-lead" id="thClients">Clients</th>
             <th colspan="3" class="grp gs"><span>Investments</span></th>
             <th colspan="3" class="grp gs"><span>Portfolio</span></th>
             <th colspan="5" class="grp gs inc"><span>Annual income</span></th>
@@ -711,7 +743,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.28-u';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.10.29-v';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -724,19 +756,26 @@ async function resolveAuthToken(){
 const ON_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
 
 const MILESTONES = [1,3,5,10,15,20,25];
+let projView = 'm';
+const projYears = () => projView === 'y' ? Array.from({ length:25 }, (_, i) => i + 1) : MILESTONES;
 const FOCUS_YEAR = 10;
 const RATES = { pms:0.01, dematPerMonth:210, pmsMin:5000000 };
 
 
 const DEFAULTS = {
-  startClients:0, startAum:0, newClients:0, sip:0, sipInc:0, sipStep:0, lump:0, red:0, activeYears:25,
-  trail:0, cagr:0,
-  lifeOn:false, lifePct:0, lifePrem:0, lifeComm:0,
-  healthOn:false, healthPct:0, healthPrem:0, healthComm:0,
-  pmsOn:false, pmsPct:0, pmsInv:5000000,                                 // PMS minimum ₹50 lakh
-  dematOn:false, dematPct:0,
-  sipStop:0, stepYears:0                                                 // 0 years = step-up every year
+  mode:'client',
+  startClients:0, startAum:0, newClients:0, clientCap:null, sip:0, lump:0, activeYears:25,   // client-based
+  sipBook0:0, newSip:0, newLump:0, sipYears:25, lumpYears:25,                                 // amount-based
+  inc:0, every:3, fade:20,                                                                    // business growth
+  sipStep:0, stepYears:null, sipStop:0, red:0, trail:0, cagr:0,
+  sipCap:null, lumpCap:null,                                                                  // optional limits
+  lifeOn:false, lifePct:0, lifeN:0, lifePrem:0, lifeComm:0,
+  healthOn:false, healthPct:0, healthN:0, healthPrem:0, healthComm:0,
+  pmsOn:false, pmsPct:0, pmsN:0, pmsInv:5000000,                                              // PMS minimum ₹50 lakh
+  dematOn:false, dematPct:0, dematN:0
 };
+// Inputs where blank means "not set" (no cap / default), as in the Excel
+const OPTIONAL = ['clientCap', 'every', 'fade', 'stepYears', 'sipCap', 'lumpCap'];
 const $ = id => document.getElementById(id);
 const PAL = { b900:'#1b2f4b', b800:'#243b5e', b700:'#2f4b75', b600:'#3a5f8f', b500:'#4f77a8', b400:'#7096c2', b300:'#9bb6d6', b200:'#c5d5e8', b100:'#e3ebf5' };
 
@@ -781,6 +820,7 @@ function readParams(){
   const p = {};
   for (const k in DEFAULTS){
     const el = $(k), d = DEFAULTS[k];
+    if (OPTIONAL.includes(k)){ const v = String(el.value).trim(); p[k] = v === '' ? null : Math.max(0, parseFloat(v) || 0); continue; }
     if (typeof d === 'boolean') p[k] = el.checked;
     else if (typeof d === 'string') p[k] = el.value;
     else { const v = parseFloat(el.value); p[k] = isFinite(v) && v > 0 ? v : 0; }
@@ -791,80 +831,85 @@ function readParams(){
   p.healthComm = Math.min(p.healthComm, 100);
   p.pmsInv = Math.max(p.pmsInv, RATES.pmsMin);
   p.sipStop = Math.min(p.sipStop, 100);
-  p.stepYears = Math.min(p.stepYears, 25);
+  if (p.stepYears !== null) p.stepYears = Math.min(p.stepYears, 25);
+  p.mode = p.mode === 'amount' ? 'amount' : 'client';
   return p;
 }
 function applyDefaults(){
   for (const k in DEFAULTS){
     const el = $(k);
-    if (typeof DEFAULTS[k] === 'boolean') el.checked = DEFAULTS[k]; else el.value = DEFAULTS[k];
+    if (typeof DEFAULTS[k] === 'boolean') el.checked = DEFAULTS[k]; else el.value = DEFAULTS[k] ?? '';
   }
+  syncMode();
+}
+const MODE_HINT = { client:'Business from clients: new clients × SIP and lumpsum per client.',
+                    amount:'Business in value: ₹ SIP and ₹ lumpsum per month.' };
+function syncMode(){
+  const m = $('mode').value === 'amount' ? 'amount' : 'client';
+  document.body.dataset.calc = m;
+  document.querySelectorAll('.method-tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('modeHint').textContent = MODE_HINT[m];
 }
 function readPartner(){
   return { partnerEmail: $('partnerEmail').value.trim().toLowerCase(), rmEmail: $('rmEmail').value.trim().toLowerCase(), targetMonth: $('targetMonth').value };
 }
 
-/* ---------- projection engine (monthly simulation) ---------- */
+/* ---------- projection engine: same month-by-month logic as the Excel workbooks ---------- */
 function compute(p){
-  // Market growth and redemptions are applied separately each month:
-  // the book grows at the full CAGR, then the redemption % of it is withdrawn.
-  const gRate = Math.pow(1 + p.cagr/100, 1/12) - 1;                      // e.g. 12% a year → 0.949% a month
-  const rRate = 1 - Math.pow(1 - Math.min(p.red, 100)/100, 1/12);        // e.g. 10% a year → 0.874% a month
-  const trailMo = p.trail/100/12;
-  const stepF = Array.from({length:26}, (_, k) => Math.pow(1 + p.sipStep/100, k));
-  // Each monthly batch of clients is a cohort: { start month, live SIPs }.
-  // Step-up runs on each client's own anniversary, for p.stepYears years (0 = every year).
-  // A share of live SIPs stops every month (p.sipStop % a year). Stopped clients stay clients; only their SIP ends.
-  const mStop = 1 - Math.pow(1 - p.sipStop/100, 1/12);
-  const stepLimit = p.stepYears > 0 ? p.stepYears : 25;
-  // Each cohort keeps its own base SIP: starting clients and Year-1 joiners at p.sip,
-  // later joiners at p.sip × (1 + base SIP increase)^(joining year − 1).
-  const cohorts = [];
-  if (p.startClients > 0) cohorts.push({ s:1, n:p.startClients, total:p.startClients, base:p.sip });
-  let aum = p.startAum*1e7, clients = p.startClients, sipBase = 0, stepup = 0, lumpCum = 0, gains = 0, monthSip = 0, liveSips = 0, month = null;
-  const months = [];   // first 12 months: clients, SIP book, net sales
-  const rows = [];
-  for (let y = 1; y <= 25; y++){
-    let trailYr = 0, sipYr = 0, stepYr = 0, sipFirst = 0, liveFirst = 0, lumpYr = 0;
-    for (let m = 1; m <= 12; m++){
-      const t = (y-1)*12 + m;
-      // SIPs stop from the month after joining (a cohort pays its first SIP in full)
-      if (mStop > 0) cohorts.forEach(c => { if (c.s < t) c.n *= (1 - mStop); });
-      if (y <= p.activeYears && p.newClients > 0){ clients += p.newClients; cohorts.push({ s:t, n:p.newClients, total:p.newClients, base: p.sip * Math.pow(1 + p.sipInc/100, y - 1) }); }
-      monthSip = 0; liveSips = 0; let base = 0;
-      for (const c of cohorts){ monthSip += c.n * c.base * stepF[Math.min(Math.floor((t - c.s)/12), stepLimit)]; liveSips += c.n; base += c.n * c.base; }
-      // Annual lumpsum: each client invests once a year, in the month they join and on every anniversary.
-      // Clients whose SIP stopped still invest their lumpsum.
-      let lumpM = 0;
-      // Lumpsum comes in only during the active years.
-      if (p.lump > 0 && y <= p.activeYears) for (const c of cohorts){ if ((t - c.s) % 12 === 0) lumpM += c.total * p.lump; }
-      aum += monthSip + lumpM; lumpYr += lumpM; lumpCum += lumpM;
-      sipBase += base; stepup += monthSip - base; sipYr += monthSip; stepYr += monthSip - base;
-      if (m === 1){ sipFirst = monthSip; liveFirst = liveSips; }
-      const g = aum * gRate; aum += g; gains += g;                // Mkt. gains: market growth only
-      const redemption = aum * rRate; aum -= redemption;         // money clients withdraw
-      trailYr += aum * trailMo;
-      if (y === 1) months.push({ clients, sipBook: monthSip, lumpsum: lumpM, netSales: monthSip + lumpM - redemption, redemption });
-      if (t === 1) month = { clients, liveSips, sipBase: base, stepup: monthSip - base, sipYr: monthSip, lumpYr: lumpM, gains: g, aum, sipBook: monthSip,
-        trail: aum * trailMo, demat: p.dematOn ? Math.round(clients*p.dematPct/100) * RATES.dematPerMonth : 0 };
+  const amount = p.mode === 'amount', BIG = 1e15;
+  const gM = Math.pow(1 + p.cagr/100, 1/12) - 1, rM = 1 - Math.pow(1 - Math.min(p.red, 100)/100, 1/12);
+  const keep = Math.pow(1 - Math.min(p.sipStop, 100)/100, 1/12), trailMo = p.trail/100/12, s = p.sipStep/100;
+  const cap = p.stepYears === null ? 25 : Math.min(p.stepYears, 25);                 // blank = every year, 0 = no step-up
+  const every = !p.every ? 3 : p.every, drop = p.fade === null ? 0 : Math.min(p.fade, 100)/100;
+  const sipCap = !p.sipCap ? BIG : p.sipCap, lumpCap = !p.lumpCap ? BIG : p.lumpCap, clientCap = !p.clientCap ? BIG : p.clientCap;
+  const actM = Math.min(p.activeYears, 25) * 12, sipM = p.sipYears * 12, lumpM = p.lumpYears * 12;
+  const Q = [0], R = [0];                                            // new SIP added, SIP reaching an anniversary
+  let D = 0, E = 0, F = 0, S = 0, L = p.startAum * 1e7, T = 0, V = 1, invested = p.startAum * 1e7;
+  const rows = [], months = [];
+  let yr = null;
+  for (let t = 1; t <= 300; t++){
+    const y = Math.floor((t - 1)/12) + 1;
+    if (t > 1 && (t - 1) % every === 0) V *= 1 + (p.inc/100) * Math.pow(1 - drop, y - 1);   // business increase with yearly fade
+    let C = 0, q, H;
+    if (amount){
+      C = t <= sipM ? Math.min(p.newSip * V, sipCap) : 0;                               // new SIP business this month
+      q = C + (t === 1 ? p.sipBook0 : 0);
+      H = t <= lumpM ? Math.min(p.newLump * V, lumpCap) : 0;
+    } else {
+      const st = t === 1 ? p.startClients : 0;
+      C = (t <= actM ? Math.max(0, Math.min(p.newClients, clientCap - D - st)) : 0) + st;
+      D += C; E = E * keep + C;
+      const P = Math.min(p.sip * V, sipCap);                                            // SIP per new client
+      q = Math.min(C * P, sipCap);                                                      // as in the workbook
+      H = Math.min((C - st) * p.lump * V, lumpCap);                                     // one-time lumpsum per new client
     }
-    const life   = p.lifeOn   ? Math.floor(clients*p.lifePct/100)   * p.lifePrem   * p.lifeComm/100 : 0;
-    const health = p.healthOn ? Math.floor(clients*p.healthPct/100) * p.healthPrem * p.healthComm/100 : 0;
-    const pms    = p.pmsOn    ? Math.floor(clients*p.pmsPct/100)    * Math.max(p.pmsInv, RATES.pmsMin) * RATES.pms : 0;
-    const demat  = p.dematOn  ? Math.round(clients*p.dematPct/100)  * RATES.dematPerMonth * 12 : 0;
-    const cross = life + health + pms, total = trailYr + cross + demat;
-    rows.push({ year:y, clients, liveSips, liveFirst, sipBase, stepup, sipYr, stepYr, sipFirst, lumpYr, gains, aum, sipBook: sipYr / 12, sipBookEnd: monthSip,
-      trail:trailYr, life, health, pms, cross, demat, total,
-      invested: p.startAum*1e7 + sipBase + stepup + lumpCum,
-      uplift: trailYr > 0 ? (total - trailYr)/trailYr*100 : 0 });
+    Q[t] = q;
+    R[t] = t <= 12 ? 0 : Math.pow(keep, 12) * (Q[t-12] + (1 + s) * R[t-12])
+                        - (t > 12 * (cap + 1) ? Q[t - 12*(cap + 1)] * Math.pow(keep, 12*(cap + 1)) * Math.pow(1 + s, cap) : 0);
+    F = F * keep + q + s * R[t];                                                        // SIP collected
+    S = S * keep + q;                                                                   // SIP without step-up
+    const I = L, J = (I + F + H) * gM, K = (I + F + H + J) * rM;
+    L = I + F + H + J - K; T += J; invested += F + H;
+    const trail = L * trailMo, net = F + H - K;
+    if (t <= 12) months.push({ clients: amount ? null : D, sipBook: F, lumpsum: H, netSales: net, redemption: K });
+    if ((t - 1) % 12 === 0) yr = { newSipYr:0, sipYr:0, stepYr:0, lumpYr:0, trail:0, redYr:0 };
+    yr.newSipYr += amount ? C : q; yr.sipYr += F; yr.stepYr += F - S; yr.lumpYr += H; yr.trail += trail; yr.redYr += K;
+    if (t % 12 === 0){
+      const cl = amount ? null : D;
+      const cnt = (on, pct, n) => !on ? 0 : amount ? n : Math.floor(D * pct / 100 + 1e-9);
+      const life = cnt(p.lifeOn, p.lifePct, p.lifeN) * p.lifePrem * p.lifeComm/100;
+      const health = cnt(p.healthOn, p.healthPct, p.healthN) * p.healthPrem * p.healthComm/100;
+      const pms = cnt(p.pmsOn, p.pmsPct, p.pmsN) * Math.max(p.pmsInv, RATES.pmsMin) * RATES.pms;
+      const demat = !p.dematOn ? 0 : (amount ? p.dematN : Math.round(D * p.dematPct / 100)) * RATES.dematPerMonth * 12;
+      const cross = life + health + pms, total = yr.trail + cross + demat;
+      rows.push({ year: y, clients: cl, liveSips: amount ? null : E, newSipYr: yr.newSipYr, sipYr: yr.sipYr, stepYr: yr.stepYr, lumpYr: yr.lumpYr,
+        gains: T, aum: L, sipBook: yr.sipYr / 12, sipBookEnd: F, trail: yr.trail, life, health, pms, cross, demat, total, invested,
+        uplift: yr.trail > 0 ? (total - yr.trail) / yr.trail * 100 : 0 });
+    }
   }
-  // Target-month row. Cross-sell is booked yearly in the model, so the month shows 1/12 of Year 1.
-  month.cross = rows[0].cross / 12;
-  month.total = month.trail + month.cross + month.demat;
-  month.uplift = month.trail > 0 ? (month.total - month.trail) / month.trail * 100 : 0;
-  rows.month = month;
   rows.months = months;
-  rows.netSales12 = months.reduce((s, m) => s + m.netSales, 0);
+  rows.netSales12 = months.reduce((a, m) => a + m.netSales, 0);
+  rows.month = { ...rows[0] };
   return rows;
 }
 
@@ -877,23 +922,29 @@ function render(){
   const at = y => rows[y-1], f = at(FOCUS_YEAR);
 
   $('gMonth').textContent = monthLabel(partner.targetMonth);
-  $('gClients').textContent = n0(p.newClients);
-  $('gClientsSub').textContent = `${n0(p.newClients*12)}/yr`;
-  $('gSip').textContent = inr(p.newClients * p.sip);
+  const amt = p.mode === 'amount';
+  $('gClientsK').textContent = amt ? 'Lumpsum business / month' : 'New clients / month';
+  $('gClients').textContent = amt ? inr(p.newLump) : n0(p.newClients);
+  $('gClientsSub').textContent = amt ? '' : `${n0(p.newClients*12)}/yr`;
+  $('gSipK').textContent = amt ? 'New SIP business / month' : 'Fresh SIP book / month';
+  $('gSip').textContent = amt ? inr(p.newSip) : inr(p.newClients * p.sip);
+  $('thClients').textContent = amt ? 'New SIP added / yr' : 'Clients';
   $('gY10').textContent = inr(f.total) + '/yr';
   $('gY10mo').textContent = inr(f.total/12) + '/mo';
 
-  $('lifeNote').innerHTML = `${inr(p.lifePrem*p.lifeComm/100)} per policy · ${p.lifePct}% of clients/yr<i>${p.lifeComm}% commission on ${inr(p.lifePrem)} premium</i>`;
-  $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per policy · ${p.healthPct}% of clients/yr<i>${p.healthComm}% commission on ${inr(p.healthPrem)} premium</i>`;
-  $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*RATES.pms)} per client · ${p.pmsPct}% of clients/yr<i>Min. ₹50L per client</i>`;
-  $('dematNote').innerHTML = `${inr(RATES.dematPerMonth*12)} per active client / yr<i>${p.dematPct}% of clients trade actively</i>`;
+  const per = (pct, n) => amt ? `${n0(n)} clients/yr` : `${pct}% of clients/yr`;
+  $('lifeNote').innerHTML = `${inr(p.lifePrem*p.lifeComm/100)} per policy · ${per(p.lifePct, p.lifeN)}<i>${p.lifeComm}% commission on ${inr(p.lifePrem)} premium</i>`;
+  $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per policy · ${per(p.healthPct, p.healthN)}<i>${p.healthComm}% commission on ${inr(p.healthPrem)} premium</i>`;
+  $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*RATES.pms)} per client · ${per(p.pmsPct, p.pmsN)}<i>Min. ₹50L per client</i>`;
+  $('dematNote').innerHTML = `${inr(RATES.dematPerMonth*12)} per active client / yr<i>${amt ? n0(p.dematN) + ' active clients' : p.dematPct + '% of clients trade actively'}</i>`;
   ['life','health','pms','demat'].forEach(k => $('card-'+k).classList.toggle('on', p[k+'On']));
 
   const cell = (v, cls='', plus=false) => v > 0 ? `<td class="${cls}">${plus?'+':''}${inr(v)}</td>` : `<td class="${cls} muted">—</td>`;
-  $('projTable').querySelector('tbody').innerHTML = MILESTONES.map(y => {
-    const r = at(y);
-    return `<tr class="${y > p.activeYears ? 'inactive' : ''}" ${y > p.activeYears ? 'title="After your active years: no new clients are added"' : ''}>
-      <td class="yr">${y}</td><td>${n0(r.clients)}</td>
+  const lastActive = amt ? Math.max(p.sipYears, p.lumpYears) : p.activeYears;
+  $('projTable').querySelector('tbody').innerHTML = projYears().map(y => {
+    const r = at(y), off = y > Math.ceil(lastActive);
+    return `<tr class="${off ? 'inactive' : ''}" ${off ? 'title="No new business is added in this year"' : ''}>
+      <td class="yr">${y}</td>${amt ? cell(r.newSipYr) : `<td>${n0(r.clients)}</td>`}
       ${cell(r.sipYr,'gs')}${cell(r.stepYr)}${cell(r.lumpYr)}
       ${cell(r.gains,'gs')}${cell(r.aum,'strong')}${cell(r.sipBook)}
       ${cell(r.trail,'gs')}${cell(r.cross,'',true)}${cell(r.demat,'',true)}
@@ -902,7 +953,7 @@ function render(){
     </tr>`;
   }).join('');
 
-  $('footNote').innerHTML = `Illustrative projections; actual returns depend on markets and client activity.${p.activeYears < 25 ? ` Greyed years come after your ${p.activeYears} active years: no new clients are added, existing SIPs continue.` : ''}`;
+  $('footNote').innerHTML = `Illustrative projections; actual returns depend on markets and client activity.${lastActive < 25 ? ' Greyed years have no new business; existing SIPs continue.' : ''}`;
 
   drawCharts(rows);
   markDirty();
@@ -988,13 +1039,13 @@ function drawCharts(rows){
   // 4. Clients & SIP book (bar + line, two axes)
   upsert('book', 'chBook', 'bar', labels, [
     { type:'line', label:'Avg SIP book / month', data: rows.map(r=>r.sipBook), borderColor:PAL.b700, backgroundColor:PAL.b700, yAxisID:'y1', tension:.3, borderWidth:2, pointRadius:0, order:0 },
-    { type:'bar', label:'Clients', data: rows.map(r=>r.clients), backgroundColor:PAL.b200, hoverBackgroundColor:PAL.b300, borderRadius:2, yAxisID:'y', order:1 }
+    { type:'bar', label: rows[0].clients === null ? 'New SIP added / yr' : 'Clients', data: rows.map(r => r.clients === null ? r.newSipYr : r.clients), backgroundColor:PAL.b200, hoverBackgroundColor:PAL.b300, borderRadius:2, yAxisID:'y', order:1 }
   ], {
     responsive:true, maintainAspectRatio:false, animation:{ duration:250 }, interaction:{ mode:'index', intersect:false },
-    plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => c.dataset.yAxisID === 'y1' ? ` SIP book: ${inr(c.parsed.y)}/mo` : ` Clients: ${n0(c.parsed.y)}` } } },
+    plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => c.dataset.yAxisID === 'y1' ? ` SIP book: ${inr(c.parsed.y)}/mo` : (rows[0].clients === null ? ` New SIP added: ${inr(c.parsed.y)}` : ` Clients: ${n0(c.parsed.y)}`) } } },
     scales:{
       x:{ grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:9, maxRotation:0 } },
-      y:{ position:'left', grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => n0(v) }, beginAtZero:true },
+      y:{ position:'left', grid:{ color:'#edf1f6' }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => rows[0].clients === null ? inrShort(v) : n0(v) }, beginAtZero:true },
       y1:{ position:'right', grid:{ display:false }, border:{ display:false }, ticks:{ maxTicksLimit:5, callback: v => inrShort(v) }, beginAtZero:true }
     }
   });
@@ -1034,13 +1085,17 @@ function buildRecord(){
   const p = readParams(), partner = readPartner(), proj = compute(p);
   return {
     ...partner,
-    startClients:p.startClients, startAumCr:p.startAum, newClientsPerMonth:p.newClients, sipPerClient:p.sip,
-    sipStepUpPct:p.sipStep, baseSipIncPct:p.sipInc, lumpsumPerClient:p.lump, redemptionPct:p.red,
+    calcMode:p.mode, startClients:p.startClients, startAumCr:p.startAum, newClientsPerMonth:p.newClients, sipPerClient:p.sip,
+    clientCap:p.clientCap ?? '', sipBookNow:p.sipBook0, newSipPerMonth:p.newSip, lumpsumPerMonth:p.newLump,
+    sipSourcingYears:p.sipYears, lumpsumSourcingYears:p.lumpYears,
+    bizIncreasePct:p.inc, bizIncreaseEveryMonths:p.every ?? '', bizGrowthDropPct:p.fade ?? '', maxSip:p.sipCap ?? '', maxLumpsumPerMonth:p.lumpCap ?? '',
+    lifeClients:p.lifeN, healthClients:p.healthN, pmsClientsPerYear:p.pmsN, dematClients:p.dematN,
+    sipStepUpPct:p.sipStep, lumpsumPerClient:p.lump, redemptionPct:p.red,
     activeYears:p.activeYears, trailRatePct:p.trail, cagrPct:p.cagr,
     lifeOn:p.lifeOn, lifePct:p.lifePct, lifePremium:p.lifePrem, lifeCommissionPct:p.lifeComm,
     healthOn:p.healthOn, healthPct:p.healthPct, healthPremium:p.healthPrem, healthCommissionPct:p.healthComm,
     pmsOn:p.pmsOn, pmsPct:p.pmsPct, pmsInvestment:p.pmsInv,
-    sipStopPct:p.sipStop, stepUpYears:p.stepYears,
+    sipStopPct:p.sipStop, stepUpYears:p.stepYears ?? '',
     dematOn:p.dematOn, dematPct:p.dematPct,
     projNetSalesMonth: Math.round(proj.months[0].netSales), projNetSales12m: Math.round(proj.netSales12),
     projSipBookMonth: Math.round(proj.months[0].sipBook), projSipBook12m: Math.round(proj.months[11].sipBook),
@@ -1198,8 +1253,8 @@ function buildReportEl(){
   const onOff = (on, txt) => on ? txt : 'Off';
   const th = 'style="text-align:right;padding:5px 6px;font-size:9px;font-weight:600;color:#243b5e;background:#e3ebf5;border-bottom:1px solid #c5d5e8"';
   const td = 'style="text-align:right;padding:4px 6px;font-size:9.5px;color:#13233a;border-bottom:1px solid #edf1f6"';
-  const tableRows = MILESTONES.map(y => { const r = at(y);
-    return `<tr${y > p.activeYears ? ' style="opacity:.45"' : ''}><td ${td.replace('right','left')}><b>${y}</b></td><td ${td}>${n0(r.clients)}</td><td ${td}>${inr(r.sipYr)}</td><td ${td}>${r.stepYr>0?inr(r.stepYr):'—'}</td><td ${td}>${inr(r.lumpYr)}</td><td ${td}>${inr(r.gains)}</td><td ${td}><b>${inr(r.aum)}</b></td><td ${td}>${inr(r.sipBook)}</td><td ${td}>${inr(r.trail)}</td><td ${td}>${r.cross>0?'+'+inr(r.cross):'—'}</td><td ${td}>${r.demat>0?'+'+inr(r.demat):'—'}</td><td ${td}><span style="font-weight:600;color:#2f4b75">${inr(r.total)}</span> <span style="color:#5f6f86;font-size:8.5px">${inr(r.total/12)}/mo</span></td><td ${td}>${r.uplift>0?`<span style="background:#e1f1e9;color:#2e7d57;font-weight:600;border-radius:9px;padding:1px 6px">+${Math.round(r.uplift)}%</span>`:'—'}</td></tr>`; }).join('');
+  const tableRows = projYears().map(y => { const r = at(y);
+    return `<tr${y > Math.ceil(p.mode === 'amount' ? Math.max(p.sipYears, p.lumpYears) : p.activeYears) ? ' style="opacity:.45"' : ''}><td ${td.replace('right','left')}><b>${y}</b></td><td ${td}>${r.clients === null ? inr(r.newSipYr) : n0(r.clients)}</td><td ${td}>${inr(r.sipYr)}</td><td ${td}>${r.stepYr>0?inr(r.stepYr):'—'}</td><td ${td}>${inr(r.lumpYr)}</td><td ${td}>${inr(r.gains)}</td><td ${td}><b>${inr(r.aum)}</b></td><td ${td}>${inr(r.sipBook)}</td><td ${td}>${inr(r.trail)}</td><td ${td}>${r.cross>0?'+'+inr(r.cross):'—'}</td><td ${td}>${r.demat>0?'+'+inr(r.demat):'—'}</td><td ${td}><span style="font-weight:600;color:#2f4b75">${inr(r.total)}</span> <span style="color:#5f6f86;font-size:8.5px">${inr(r.total/12)}/mo</span></td><td ${td}>${r.uplift>0?`<span style="background:#e1f1e9;color:#2e7d57;font-weight:600;border-radius:9px;padding:1px 6px">+${Math.round(r.uplift)}%</span>`:'—'}</td></tr>`; }).join('');
   const box = (title, body) => `<div style="flex:1;border:1px solid #dbe3ee;border-radius:8px;padding:10px 14px"><div style="font-size:11px;font-weight:600;color:#3a5f8f;margin-bottom:4px">${title}</div><table style="width:100%;font-size:11px;border-collapse:collapse">${body}</table></div>`;
   const chartBox = (t, sub, k) => `<div class="pdf-chart" style="width:502px;box-sizing:border-box;border:1px solid #dbe3ee;border-radius:8px;padding:9px 10px 6px;margin-bottom:12px;background:#fff"><div style="font-size:12px;font-weight:600;color:#1b2f4b">${t}</div><div style="font-size:9.5px;color:#5f6f86;margin-bottom:4px">${sub}</div>${imgs[k]?`<img src="${imgs[k]}" style="width:480px;height:245px;display:block">`:''}</div>`;
   const kpi = (l, r, bg) => `<div style="flex:1;padding:9px 14px;background:${bg}"><div style="color:#c5d5e8;font-size:10px">${l} income</div><div style="font-size:15px;font-weight:600">${inr(r.total)}/yr</div><div style="color:#c5d5e8;font-size:10px">${inr(r.total/12)}/mo · AUM ${inr(r.aum)}</div></div>`;
@@ -1215,7 +1270,11 @@ function buildReportEl(){
   <div style="padding:16px 24px">
     <div style="display:flex;gap:12px">
       ${box('Partner', kv('Partner email', partner.partnerEmail || '—') + kv('RM email', partner.rmEmail || '—') + kv('Target month', monthLabel(partner.targetMonth)))}
-      ${box('Book &amp; monthly targets', kv('Starting clients / AUM', n0(p.startClients)+' / ₹'+p.startAum+' Cr') + kv('New clients / month', n0(p.newClients)) + kv('SIP / client / month', inr(p.sip)+' (base +'+p.sipInc+'%/yr, step-up '+p.sipStep+'%)') + kv('Annual lumpsum / client', inr(p.lump)) + kv('Redemption / active years', p.red+'% / '+p.activeYears+' yrs') + kv('Trail / Market CAGR', p.trail+'% / '+p.cagr+'%') + kv('SIP behaviour', `${p.sipStop}% stop/yr · step-up ${p.stepYears > 0 ? p.stepYears + ' yrs' : 'every year'}`))}
+      ${box(p.mode === 'amount' ? 'Amount-based targets' : 'Client-based targets', (p.mode === 'amount'
+          ? kv('Current AUM / SIP book', '₹'+p.startAum+' Cr / '+inr(p.sipBook0)+'/mo') + kv('New SIP / lumpsum per month', inr(p.newSip)+' / '+inr(p.newLump)) + kv('Sourcing stops after', `SIP ${p.sipYears} yrs · lumpsum ${p.lumpYears} yrs`)
+          : kv('Starting clients / AUM', n0(p.startClients)+' / ₹'+p.startAum+' Cr') + kv('New clients / month', n0(p.newClients) + (p.clientCap ? ` (cap ${n0(p.clientCap)})` : '')) + kv('SIP / lumpsum per new client', inr(p.sip)+' / '+inr(p.lump)+' one-time') + kv('Active years', p.activeYears+' yrs'))
+        + kv('Business increase', `${p.inc}% every ${p.every || 3} months, drops ${p.fade ?? 0}%/yr`) + kv('Redemption / trail / CAGR', p.red+'% / '+p.trail+'% / '+p.cagr+'%')
+        + kv('SIP behaviour', `${p.sipStop}% stop/yr · step-up ${p.sipStep}% ${p.stepYears === null ? 'every year' : p.stepYears === 0 ? '(none)' : 'for ' + p.stepYears + ' yrs'}`))}
       ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}%`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))}`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
     </div>
     <div style="display:flex;margin-top:12px;color:#fff;border-radius:8px;overflow:hidden">
@@ -1223,7 +1282,7 @@ function buildReportEl(){
     </div>
     <div style="font-size:13px;font-weight:600;margin:14px 0 6px;color:#1b2f4b">25-year income projections</div>
     <table style="width:100%;border-collapse:collapse;border:1px solid #dbe3ee">
-      <thead><tr><th ${th.replace('right','left')}>Year</th><th ${th}>Clients</th><th ${th}>SIP contrib. / yr</th><th ${th}>Step-up SIP / yr</th><th ${th}>Lumpsum / yr</th><th ${th}>Mkt. gains</th><th ${th}>Total AUM</th><th ${th}>Avg SIP book / mo</th><th ${th}>Trail</th><th ${th}>Cross-sell</th><th ${th}>Demat</th><th ${th}>Total</th><th ${th}>Uplift</th></tr></thead>
+      <thead><tr><th ${th.replace('right','left')}>Year</th><th ${th}>${p.mode === 'amount' ? 'New SIP added / yr' : 'Clients'}</th><th ${th}>SIP contrib. / yr</th><th ${th}>Step-up SIP / yr</th><th ${th}>Lumpsum / yr</th><th ${th}>Mkt. gains</th><th ${th}>Total AUM</th><th ${th}>Avg SIP book / mo</th><th ${th}>Trail</th><th ${th}>Cross-sell</th><th ${th}>Demat</th><th ${th}>Total</th><th ${th}>Uplift</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
     <div style="color:#5f6f86;font-size:9.5px;line-height:1.5;margin-top:8px">${$('footNote').innerHTML}</div>
@@ -1268,11 +1327,17 @@ function downloadCsv(){
   L.push([]);
   L.push(['Input', 'Value']);
   [['Partner email', rec.partnerEmail], ['RM email', rec.rmEmail], ['Target month', monthLabel(rec.targetMonth)],
-   ['Starting clients', rec.startClients], ['Starting AUM (Cr)', rec.startAumCr], ['New clients / month', rec.newClientsPerMonth],
-   ['SIP / client / month (₹)', rec.sipPerClient], ['Base SIP increase % (new clients)', rec.baseSipIncPct], ['SIP step-up %', rec.sipStepUpPct],
-   ['Annual lumpsum / client (₹)', rec.lumpsumPerClient], ['Annual redemption %', rec.redemptionPct], ['Active years', rec.activeYears],
+   ['Method', rec.calcMode === 'amount' ? 'Amount-based' : 'Client-based'], ['Starting AUM (Cr)', rec.startAumCr],
+   ...(rec.calcMode === 'amount'
+     ? [['Current SIP book / month (₹)', rec.sipBookNow], ['New SIP business / month (₹)', rec.newSipPerMonth], ['Lumpsum business / month (₹)', rec.lumpsumPerMonth],
+        ['New SIP sourcing stops after (years)', rec.sipSourcingYears], ['Lumpsum sourcing stops after (years)', rec.lumpsumSourcingYears]]
+     : [['Starting clients', rec.startClients], ['New clients / month', rec.newClientsPerMonth], ['Client cap', rec.clientCap === '' ? 'No cap' : rec.clientCap],
+        ['SIP / new client / month (₹)', rec.sipPerClient], ['Lumpsum / new client, one-time (₹)', rec.lumpsumPerClient], ['Active years', rec.activeYears]]),
+   ['Business increase per period %', rec.bizIncreasePct], ['Increase every (months)', rec.bizIncreaseEveryMonths === '' ? 3 : rec.bizIncreaseEveryMonths], ['Growth drops by % per year', rec.bizGrowthDropPct],
+   ['SIP step-up %', rec.sipStepUpPct], ['Annual redemption %', rec.redemptionPct],
+   ['Max SIP (₹)', rec.maxSip === '' ? 'No cap' : rec.maxSip], ['Max lumpsum / month (₹)', rec.maxLumpsumPerMonth === '' ? 'No cap' : rec.maxLumpsumPerMonth],
    ['Trail rate %', rec.trailRatePct], ['Market CAGR %', rec.cagrPct],
-   ['SIPs stopping per year %', rec.sipStopPct], ['Step-up lasts (years per client, 0 = every year)', rec.stepUpYears],
+   ['SIPs stopping per year %', rec.sipStopPct], ['Step-up lasts (years; blank = every year, 0 = none)', rec.stepUpYears === '' ? 'Every year' : rec.stepUpYears],
    ['Life insurance', yn(rec.lifeOn)], ['Life % of clients / yr', rec.lifePct], ['Life avg premium (₹)', rec.lifePremium], ['Life commission %', rec.lifeCommissionPct],
    ['Health insurance', yn(rec.healthOn)], ['Health % of clients / yr', rec.healthPct], ['Health avg premium (₹)', rec.healthPremium], ['Health commission %', rec.healthCommissionPct],
    ['PMS', yn(rec.pmsOn)], ['PMS % of clients / yr', rec.pmsPct], ['PMS investment (₹)', rec.pmsInvestment],
@@ -1282,10 +1347,10 @@ function downloadCsv(){
   L.push(['MF net sales (₹)', rec.projNetSalesMonth, rec.projNetSales12m]);
   L.push(['SIP book (₹ / month)', rec.projSipBookMonth, rec.projSipBook12m + ' (at month 12)']);
   L.push([]);
-  L.push(['Period', 'Clients', 'SIP contrib. / yr (₹)', 'Step-up SIP / yr (₹)', 'Lumpsum / yr (₹)', 'Mkt. gains (₹)', 'Total AUM (₹)', 'Avg SIP book / mo (₹)', 'Trail (₹)', 'Cross-sell (₹)', 'Demat (₹)', 'Total income (₹)', 'Uplift %']);
+  L.push(['Period', rec.calcMode === 'amount' ? 'New SIP added / yr (₹)' : 'Clients', 'SIP contrib. / yr (₹)', 'Step-up SIP / yr (₹)', 'Lumpsum / yr (₹)', 'Mkt. gains (₹)', 'Total AUM (₹)', 'Avg SIP book / mo (₹)', 'Trail (₹)', 'Cross-sell (₹)', 'Demat (₹)', 'Total income (₹)', 'Uplift %']);
   const R = v => Math.round(v);
-  MILESTONES.forEach(y => { const r = rows[y-1];
-    L.push(['Year ' + y, R(r.clients), R(r.sipYr), R(r.stepYr), R(r.lumpYr), R(r.gains), R(r.aum), R(r.sipBook), R(r.trail), R(r.cross), R(r.demat), R(r.total), R(r.uplift)]); });
+  rows.forEach(r => { const y = r.year;
+    L.push(['Year ' + y, rec.calcMode === 'amount' ? R(r.newSipYr) : R(r.clients), R(r.sipYr), R(r.stepYr), R(r.lumpYr), R(r.gains), R(r.aum), R(r.sipBook), R(r.trail), R(r.cross), R(r.demat), R(r.total), R(r.uplift)]); });
   const csv = '\ufeff' + L.map(r => r.map(q).join(',')).join('\r\n');
   const date = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());
   const a = document.createElement('a');
@@ -1333,6 +1398,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Every refresh starts clean: no values restored by the browser
   document.querySelectorAll('input, textarea, select').forEach(el => el.setAttribute('autocomplete', 'off'));
   applyDefaults();
+  document.querySelectorAll('.method-tabs button').forEach(b => b.addEventListener('click', () => { $('mode').value = b.dataset.mode; syncMode(); render(); }));
+  document.querySelectorAll('#projView button').forEach(b => b.addEventListener('click', () => {
+    projView = b.dataset.v; document.querySelectorAll('#projView button').forEach(x => x.classList.toggle('on', x === b)); render(); }));
   ['partnerEmail', 'rmEmail', 'remarks'].forEach(id => $(id).value = '');
   $('targetMonth').value = istMonthValue();
   window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
@@ -1588,14 +1656,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const fyOf = ym => fyQuarter(ym).fy;
 
   function paramsFromRecord(r){
+    const opt = v => (v === '' || v === null || v === undefined) ? null : pos(v), isNew = !!r.calcMode;
     return {
+      mode: r.calcMode === 'amount' ? 'amount' : 'client',
       startClients:pos(r.startClients), startAum:pos(r.startAumCr), newClients:pos(r.newClientsPerMonth), sip:pos(r.sipPerClient),
-      sipStep:pos(r.sipStepUpPct), sipInc:pos(r.baseSipIncPct), lump:pos(r.lumpsumPerClient), red:pos(r.redemptionPct),
+      clientCap:opt(r.clientCap), sipBook0:pos(r.sipBookNow), newSip:pos(r.newSipPerMonth), newLump:pos(r.lumpsumPerMonth),
+      sipYears:isNew ? pos(r.sipSourcingYears) : 25, lumpYears:isNew ? pos(r.lumpsumSourcingYears) : 25,
+      inc:pos(r.bizIncreasePct), every:opt(r.bizIncreaseEveryMonths), fade:isNew ? opt(r.bizGrowthDropPct) : 0, sipCap:opt(r.maxSip), lumpCap:opt(r.maxLumpsumPerMonth),
+      lifeN:pos(r.lifeClients), healthN:pos(r.healthClients), pmsN:pos(r.pmsClientsPerYear), dematN:pos(r.dematClients),
+      sipStep:pos(r.sipStepUpPct), lump:pos(r.lumpsumPerClient), red:pos(r.redemptionPct),
       activeYears:Math.min(pos(r.activeYears), 25), trail:pos(r.trailRatePct), cagr:pos(r.cagrPct),
       lifeOn:bool(r.lifeOn), lifePct:pos(r.lifePct), lifePrem:pos(r.lifePremium), lifeComm:pos(r.lifeCommissionPct),
       healthOn:bool(r.healthOn), healthPct:pos(r.healthPct), healthPrem:pos(r.healthPremium), healthComm:pos(r.healthCommissionPct),
       pmsOn:bool(r.pmsOn), pmsPct:pos(r.pmsPct), pmsInv:Math.max(pos(r.pmsInvestment), RATES.pmsMin), dematOn:bool(r.dematOn), dematPct:pos(r.dematPct),
-      sipStop: Math.min(pos(r.sipStopPct), 100), stepYears: Math.min(pos(r.stepUpYears), 25)
+      sipStop: Math.min(pos(r.sipStopPct), 100),
+      // older rows used 0 = every year; new rows use blank = every year, 0 = none
+      stepYears: isNew ? (opt(r.stepUpYears) === null ? null : Math.min(pos(r.stepUpYears), 25)) : (pos(r.stepUpYears) > 0 ? Math.min(pos(r.stepUpYears), 25) : null)
     };
   }
   function projection(s){ const k = s.id || s.entry; if (!projCache.has(k)) projCache.set(k, compute(paramsFromRecord(s))); return projCache.get(k); }
@@ -1609,10 +1685,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = cands[cands.length - 1], diff = monthDiff(s.month, month);
     if (diff > 11) return null;
     const p = paramsFromRecord(s), m = projection(s).months[diff];
-    const perMonth = (on, pct) => on ? m.clients * pct / 100 / 12 : 0;
-    return { from: s.month, carried: diff > 0, newClients: p.activeYears >= 1 ? p.newClients : 0, sipBook: m.sipBook, netSales: m.netSales,
-             life: perMonth(p.lifeOn, p.lifePct), health: perMonth(p.healthOn, p.healthPct), pms: perMonth(p.pmsOn, p.pmsPct),
-             demat: p.dematOn ? p.newClients * p.dematPct / 100 : 0 };
+    const amt = p.mode === 'amount';
+    const perMonth = (on, pct, n) => !on ? 0 : amt ? n / 12 : m.clients * pct / 100 / 12;
+    return { from: s.month, carried: diff > 0, newClients: amt ? 0 : (p.activeYears >= 1 ? p.newClients : 0), sipBook: m.sipBook, netSales: m.netSales,
+             life: perMonth(p.lifeOn, p.lifePct, p.lifeN), health: perMonth(p.healthOn, p.healthPct, p.healthN), pms: perMonth(p.pmsOn, p.pmsPct, p.pmsN),
+             demat: !p.dematOn ? 0 : amt ? 0 : p.newClients * p.dematPct / 100 };
   }
 
   /* ---------- server ---------- */
@@ -1657,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const p = paramsFromRecord(latest);
       for (const k in DEFAULTS){
         const el = $(k); if (!el) continue;
-        if (typeof DEFAULTS[k] === 'boolean') el.checked = !!p[k]; else el.value = p[k];
+        if (typeof DEFAULTS[k] === 'boolean') el.checked = !!p[k]; else el.value = p[k] ?? '';
         el.dispatchEvent(new Event('change'));
       }
     }
@@ -1667,6 +1744,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                            : 'Try your own numbers. To submit an official projection, contact your RM.';
     if ($('remarks')){ $('remarks').value = latest ? (latest.remarks || '') : ''; $('remarks').placeholder = 'No remarks'; }
     ['partnerEmail', 'rmEmail', 'remarks'].forEach(id => { if ($(id)) $(id).readOnly = true; });
+    if (typeof syncMode === 'function') syncMode();
     if (typeof render === 'function') render();
   });
 
