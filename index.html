@@ -522,8 +522,8 @@
     </div>
 
     <div id="fieldStore" hidden></div>
-    <p class="hint" id="hintBg">Also applied: SIP and lumpsum per new client grow 10% a quarter, the rate falling 20% each year; max SIP ₹10L per new client, max lumpsum ₹5 Cr a month.</p>
-    <p class="hint" id="hintBgAmt">Also applied: monthly SIP and lumpsum business grow 10% a quarter, the rate falling 20% each year.</p>
+    <p class="hint" id="hintBg">Also applied: SIP and lumpsum per new client grow 10% a quarter, the rate falling 10% each year; max SIP ₹10L per new client, max lumpsum ₹5 Cr a month.</p>
+    <p class="hint" id="hintBgAmt">Also applied: monthly SIP and lumpsum business grow 10% a quarter, the rate falling 10% each year.</p>
     <p class="hint" id="hintStep">Step-up lasts = years each client keeps stepping up their SIP. Blank = every year, 0 = no step-up.</p>
 
     <div class="panel">
@@ -549,6 +549,8 @@
           <div class="field mode-client"><label for="healthPct">% of clients / yr</label><div class="inbox"><input id="healthPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
           <div class="field"><label for="healthPrem">Avg. premium</label><div class="inbox"><span class="pre">₹</span><input id="healthPrem" type="number" min="0" step="5000"></div></div>
           <div class="field"><label for="healthComm">Commission (first year)</label><div class="inbox"><input id="healthComm" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field"><label for="healthRenew">Commission on renewals</label><div class="inbox"><input id="healthRenew" type="number" min="0" max="100" step="0.5"><span class="suf">%</span></div></div>
+          <div class="field"><label for="healthKeep">Policies renewing each year</label><div class="inbox"><input id="healthKeep" type="number" min="0" max="100" step="1"><span class="suf">%</span></div></div>
           <div class="xs-note" id="healthNote"></div>
         </div>
       </div>
@@ -574,7 +576,7 @@
         </div>
       </div>
 
-      <div class="reg-note">Enter the first-year commission your insurer pays. Renewal commissions aren't included.</div>
+      <div class="reg-note">Life: first-year commission only. Health: first-year commission on new policies plus renewal commission on every policy that renews.</div>
     </div>
     <button class="reset" id="btnReset" type="button">↺ Reset to defaults</button>
   </aside>
@@ -748,7 +750,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.29-v';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.10.30-w';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -772,19 +774,19 @@ const DEFAULTS = {
   startClients:0, startAum:0, newClients:0, clientCap:null, sip:0, lump:0, activeYears:25,   // client-based
   sipBook0:0, newSip:0, newLump:0, sipYears:25, lumpYears:25,                                 // amount-based
   inc:0, every:3, fade:20,                                                                    // business growth
-  sipStep:0, stepYears:null, sipStop:0, red:0, trail:0, cagr:0,
+  sipStep:10, stepYears:null, sipStop:0, red:5, trail:0.7, cagr:12,
   sipCap:null, lumpCap:null,                                                                  // optional limits
-  lifeOn:false, lifePct:0, lifeN:0, lifePrem:0, lifeComm:0,
-  healthOn:false, healthPct:0, healthN:0, healthPrem:0, healthComm:0,
+  lifeOn:false, lifePct:0, lifeN:0, lifePrem:25000, lifeComm:25,
+  healthOn:false, healthPct:0, healthN:0, healthPrem:10000, healthComm:15, healthRenew:15, healthKeep:85,   // renewal commission & policies renewing
   pmsOn:false, pmsPct:0, pmsN:0, pmsInv:5000000,                                              // PMS minimum ₹50 lakh
   dematOn:false, dematPct:0, dematN:0
 };
 // Inputs where blank means "not set" (no cap / default), as in the Excel
 const OPTIONAL = ['clientCap', 'every', 'fade', 'stepYears', 'sipCap', 'lumpCap'];
 // Client-based: these aren't asked for; they run in the background with the client Excel's values
-const CLIENT_BG = { inc:10, every:3, fade:20, sipCap:1000000, lumpCap:50000000 };
+const CLIENT_BG = { inc:10, every:3, fade:10, sipCap:1000000, lumpCap:50000000 };
 // Both methods: business growth runs in the background (10% per quarter, rate falling 20% a year)
-const GROWTH_BG = { inc:10, every:3, fade:20 };
+const GROWTH_BG = { inc:10, every:3, fade:10 };
 const $ = id => document.getElementById(id);
 const PAL = { b900:'#1b2f4b', b800:'#243b5e', b700:'#2f4b75', b600:'#3a5f8f', b500:'#4f77a8', b400:'#7096c2', b300:'#9bb6d6', b200:'#c5d5e8', b100:'#e3ebf5' };
 
@@ -838,6 +840,7 @@ function readParams(){
   p.dematPct = Math.min(p.dematPct, 100);
   p.lifeComm = Math.min(p.lifeComm, 100);
   p.healthComm = Math.min(p.healthComm, 100);
+  p.healthRenew = Math.min(p.healthRenew, 100); p.healthKeep = Math.min(p.healthKeep, 100);
   p.pmsInv = Math.max(p.pmsInv, RATES.pmsMin);
   p.sipStop = Math.min(p.sipStop, 100);
   if (p.stepYears !== null) p.stepYears = Math.min(p.stepYears, 25);
@@ -895,7 +898,7 @@ function compute(p){
   const Q = [0], R = [0];                                            // new SIP added, SIP reaching an anniversary
   let D = 0, E = 0, F = 0, S = 0, L = p.startAum * 1e7, T = 0, V = 1, invested = p.startAum * 1e7;
   const rows = [], months = [];
-  let yr = null;
+  let yr = null, healthPolicies = 0;
   for (let t = 1; t <= 300; t++){
     const y = Math.floor((t - 1)/12) + 1;
     if (t > 1 && (t - 1) % every === 0) V *= 1 + (p.inc/100) * Math.pow(1 - drop, y - 1);   // business increase with yearly fade
@@ -927,7 +930,10 @@ function compute(p){
       const cl = amount ? null : D;
       const cnt = (on, pct, n) => !on ? 0 : amount ? n : Math.floor(D * pct / 100 + 1e-9);
       const life = cnt(p.lifeOn, p.lifePct, p.lifeN) * p.lifePrem * p.lifeComm/100;
-      const health = cnt(p.healthOn, p.healthPct, p.healthN) * p.healthPrem * p.healthComm/100;
+      const newHealth = cnt(p.healthOn, p.healthPct, p.healthN);
+      const renewed = p.healthOn ? healthPolicies * (p.healthKeep ?? 0) / 100 : 0;           // last year's policies that renew
+      healthPolicies = renewed + newHealth;
+      const health = newHealth * p.healthPrem * p.healthComm/100 + renewed * p.healthPrem * (p.healthRenew ?? 0)/100;
       const pms = cnt(p.pmsOn, p.pmsPct, p.pmsN) * Math.max(p.pmsInv, RATES.pmsMin) * RATES.pms;
       const demat = !p.dematOn ? 0 : (amount ? p.dematN : Math.round(D * p.dematPct / 100)) * RATES.dematPerMonth * 12;
       const cross = life + health + pms, total = yr.trail + cross + demat;
@@ -963,7 +969,7 @@ function render(){
 
   const per = (pct, n) => amt ? `${n0(n)} clients/yr` : `${pct}% of clients/yr`;
   $('lifeNote').innerHTML = `${inr(p.lifePrem*p.lifeComm/100)} per policy · ${per(p.lifePct, p.lifeN)}<i>${p.lifeComm}% commission on ${inr(p.lifePrem)} premium</i>`;
-  $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per policy · ${per(p.healthPct, p.healthN)}<i>${p.healthComm}% commission on ${inr(p.healthPrem)} premium</i>`;
+  $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per new policy, ${inr(p.healthPrem*p.healthRenew/100)} per renewal · ${per(p.healthPct, p.healthN)}<i>${p.healthKeep}% of policies renew each year</i>`;
   $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*RATES.pms)} per client · ${per(p.pmsPct, p.pmsN)}<i>Min. ₹50L per client</i>`;
   $('dematNote').innerHTML = `${inr(RATES.dematPerMonth*12)} per active client / yr<i>${amt ? n0(p.dematN) + ' active clients' : p.dematPct + '% of clients trade actively'}</i>`;
   ['life','health','pms','demat'].forEach(k => $('card-'+k).classList.toggle('on', p[k+'On']));
@@ -1122,7 +1128,7 @@ function buildRecord(){
     sipStepUpPct:p.sipStep, lumpsumPerClient:p.lump, redemptionPct:p.red,
     activeYears:p.activeYears, trailRatePct:p.trail, cagrPct:p.cagr,
     lifeOn:p.lifeOn, lifePct:p.lifePct, lifePremium:p.lifePrem, lifeCommissionPct:p.lifeComm,
-    healthOn:p.healthOn, healthPct:p.healthPct, healthPremium:p.healthPrem, healthCommissionPct:p.healthComm,
+    healthOn:p.healthOn, healthPct:p.healthPct, healthPremium:p.healthPrem, healthCommissionPct:p.healthComm, healthRenewalPct:p.healthRenew, healthRenewingPct:p.healthKeep,
     pmsOn:p.pmsOn, pmsPct:p.pmsPct, pmsInvestment:p.pmsInv,
     sipStopPct:p.sipStop, stepUpYears:p.stepYears ?? '',
     dematOn:p.dematOn, dematPct:p.dematPct,
@@ -1304,7 +1310,7 @@ function buildReportEl(){
           : kv('Starting clients / AUM', n0(p.startClients)+' / ₹'+p.startAum+' Cr') + kv('New clients / month', n0(p.newClients) + (p.clientCap ? ` (cap ${n0(p.clientCap)})` : '')) + kv('SIP / lumpsum per new client', inr(p.sip)+' / '+inr(p.lump)+' one-time') + kv('Active years', p.activeYears+' yrs'))
         + kv('Business increase', `${p.inc}% every ${p.every || 3} months, drops ${p.fade ?? 0}%/yr`) + kv('Redemption / trail / CAGR', p.red+'% / '+p.trail+'% / '+p.cagr+'%')
         + kv('SIP behaviour', `${p.sipStop}% stop/yr · step-up ${p.sipStep}% ${p.stepYears === null ? 'every year' : p.stepYears === 0 ? '(none)' : 'for ' + p.stepYears + ' yrs'}`))}
-      ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}%`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))}`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
+      ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}% + ${p.healthRenew}% renewals`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))}`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
     </div>
     <div style="display:flex;margin-top:12px;color:#fff;border-radius:8px;overflow:hidden">
       ${kpi('Year 1', at(1), '#1b2f4b')}${kpi('Year 5', at(5), '#243b5e')}${kpi('Year 10', at(10), '#2f4b75')}${kpi('Year 25', at(25), '#3a5f8f')}
@@ -1368,7 +1374,7 @@ function downloadCsv(){
    ['Trail rate %', rec.trailRatePct], ['Market CAGR %', rec.cagrPct],
    ['SIPs stopping per year %', rec.sipStopPct], ['Step-up lasts (years; blank = every year, 0 = none)', rec.stepUpYears === '' ? 'Every year' : rec.stepUpYears],
    ['Life insurance', yn(rec.lifeOn)], ['Life % of clients / yr', rec.lifePct], ['Life avg premium (₹)', rec.lifePremium], ['Life commission %', rec.lifeCommissionPct],
-   ['Health insurance', yn(rec.healthOn)], ['Health % of clients / yr', rec.healthPct], ['Health avg premium (₹)', rec.healthPremium], ['Health commission %', rec.healthCommissionPct],
+   ['Health insurance', yn(rec.healthOn)], ['Health % of clients / yr', rec.healthPct], ['Health avg premium (₹)', rec.healthPremium], ['Health commission %', rec.healthCommissionPct], ['Health renewal commission %', rec.healthRenewalPct], ['Health policies renewing each year %', rec.healthRenewingPct],
    ['PMS', yn(rec.pmsOn)], ['PMS % of clients / yr', rec.pmsPct], ['PMS investment (₹)', rec.pmsInvestment],
    ['Demat & broking', yn(rec.dematOn)], ['Demat % clients active', rec.dematPct]].forEach(r => L.push(r));
   L.push([]);
@@ -1696,7 +1702,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sipStep:pos(r.sipStepUpPct), lump:pos(r.lumpsumPerClient), red:pos(r.redemptionPct),
       activeYears:Math.min(pos(r.activeYears), 25), trail:pos(r.trailRatePct), cagr:pos(r.cagrPct),
       lifeOn:bool(r.lifeOn), lifePct:pos(r.lifePct), lifePrem:pos(r.lifePremium), lifeComm:pos(r.lifeCommissionPct),
-      healthOn:bool(r.healthOn), healthPct:pos(r.healthPct), healthPrem:pos(r.healthPremium), healthComm:pos(r.healthCommissionPct),
+      healthOn:bool(r.healthOn), healthPct:pos(r.healthPct), healthPrem:pos(r.healthPremium), healthComm:pos(r.healthCommissionPct), healthRenew:pos(r.healthRenewalPct), healthKeep:pos(r.healthRenewingPct),
       pmsOn:bool(r.pmsOn), pmsPct:pos(r.pmsPct), pmsInv:Math.max(pos(r.pmsInvestment), RATES.pmsMin), dematOn:bool(r.dematOn), dematPct:pos(r.dematPct),
       sipStop: Math.min(pos(r.sipStopPct), 100),
       // older rows used 0 = every year; new rows use blank = every year, 0 = none
