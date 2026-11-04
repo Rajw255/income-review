@@ -56,6 +56,7 @@
   body.partner-mode #btnSubmit, body.partner-mode #btnReset, body.partner-mode #insChange, body.partner-mode #insRefresh,
   body.partner-mode #salesCard, body.partner-mode #dirtyNote{display:none!important}
   body.partner-mode #btnPdf{display:inline-flex!important}
+  body.partner-mode #submitBar > label, body.partner-mode #remarks{display:none!important}
   .partner-empty-msg{display:none}
   body.partner-empty .layout > aside, body.partner-empty .layout > main{display:none!important}
   body.partner-empty .partner-empty-msg{display:block;grid-column:1/-1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted);margin:20px auto;max-width:560px}
@@ -474,7 +475,7 @@
       <div class="field stack"><label for="targetMonth">Target month</label><div class="inbox text lg"><input id="targetMonth" type="month"></div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" hidden>
       <div class="panel-title"><span>Projection method</span></div>
       <div class="method-tabs" role="tablist"><button type="button" data-mode="client" class="on">Client-based</button><button type="button" data-mode="amount">Amount-based</button></div>
       <p class="hint" id="modeHint"></p>
@@ -556,12 +557,13 @@
       </div>
 
       <div class="xs-card" id="card-pms">
-        <div class="xs-head"><div><b>PMS</b><small>1% commission</small></div>
+        <div class="xs-head"><div><b>PMS</b><small>Trail on PMS money placed</small></div>
           <label class="toggle"><input type="checkbox" id="pmsOn" aria-label="Include PMS"><span></span></label></div>
         <div class="xs-body">
           <div class="field mode-amount"><label for="pmsN">Clients / yr</label><div class="inbox"><input id="pmsN" type="number" min="0" step="1"></div></div>
           <div class="field mode-client"><label for="pmsPct">% of clients / yr</label><div class="inbox"><input id="pmsPct" type="number" min="0" step="0.5"><span class="suf">%</span></div></div>
           <div class="field"><label for="pmsInv">Investment (min. ₹50L)</label><div class="inbox"><span class="pre">₹</span><input id="pmsInv" type="number" min="5000000" step="10000"></div></div>
+          <div class="field"><label for="pmsTrail">Trail / commission p.a.</label><div class="inbox"><input id="pmsTrail" type="number" min="0" max="5" step="0.05"><span class="suf">%</span></div></div>
           <div class="xs-note" id="pmsNote"></div>
         </div>
       </div>
@@ -750,7 +752,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.30-w';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.10.30-x';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -778,7 +780,7 @@ const DEFAULTS = {
   sipCap:null, lumpCap:null,                                                                  // optional limits
   lifeOn:false, lifePct:0, lifeN:0, lifePrem:25000, lifeComm:25,
   healthOn:false, healthPct:0, healthN:0, healthPrem:10000, healthComm:15, healthRenew:15, healthKeep:85,   // renewal commission & policies renewing
-  pmsOn:false, pmsPct:0, pmsN:0, pmsInv:5000000,                                              // PMS minimum ₹50 lakh
+  pmsOn:false, pmsPct:0, pmsN:0, pmsInv:5000000, pmsTrail:1,                                              // PMS minimum ₹50 lakh
   dematOn:false, dematPct:0, dematN:0
 };
 // Inputs where blank means "not set" (no cap / default), as in the Excel
@@ -898,7 +900,7 @@ function compute(p){
   const Q = [0], R = [0];                                            // new SIP added, SIP reaching an anniversary
   let D = 0, E = 0, F = 0, S = 0, L = p.startAum * 1e7, T = 0, V = 1, invested = p.startAum * 1e7;
   const rows = [], months = [];
-  let yr = null, healthPolicies = 0;
+  let yr = null, healthPolicies = 0, pmsAum = 0;
   for (let t = 1; t <= 300; t++){
     const y = Math.floor((t - 1)/12) + 1;
     if (t > 1 && (t - 1) % every === 0) V *= 1 + (p.inc/100) * Math.pow(1 - drop, y - 1);   // business increase with yearly fade
@@ -934,7 +936,9 @@ function compute(p){
       const renewed = p.healthOn ? healthPolicies * (p.healthKeep ?? 0) / 100 : 0;           // last year's policies that renew
       healthPolicies = renewed + newHealth;
       const health = newHealth * p.healthPrem * p.healthComm/100 + renewed * p.healthPrem * (p.healthRenew ?? 0)/100;
-      const pms = cnt(p.pmsOn, p.pmsPct, p.pmsN) * Math.max(p.pmsInv, RATES.pmsMin) * RATES.pms;
+      // PMS: money placed each year grows with the market (less redemptions); trail is paid on the year-end PMS book
+      pmsAum = pmsAum * (1 + p.cagr/100) * (1 - Math.min(p.red, 100)/100) + cnt(p.pmsOn, p.pmsPct, p.pmsN) * Math.max(p.pmsInv, RATES.pmsMin);
+      const pms = p.pmsOn ? pmsAum * (p.pmsTrail ?? 0) / 100 : 0;
       const demat = !p.dematOn ? 0 : (amount ? p.dematN : Math.round(D * p.dematPct / 100)) * RATES.dematPerMonth * 12;
       const cross = life + health + pms, total = yr.trail + cross + demat;
       rows.push({ year: y, clients: cl, liveSips: amount ? null : E, newSipYr: yr.newSipYr, sipYr: yr.sipYr, stepYr: yr.stepYr, lumpYr: yr.lumpYr,
@@ -970,7 +974,7 @@ function render(){
   const per = (pct, n) => amt ? `${n0(n)} clients/yr` : `${pct}% of clients/yr`;
   $('lifeNote').innerHTML = `${inr(p.lifePrem*p.lifeComm/100)} per policy · ${per(p.lifePct, p.lifeN)}<i>${p.lifeComm}% commission on ${inr(p.lifePrem)} premium</i>`;
   $('healthNote').innerHTML = `${inr(p.healthPrem*p.healthComm/100)} per new policy, ${inr(p.healthPrem*p.healthRenew/100)} per renewal · ${per(p.healthPct, p.healthN)}<i>${p.healthKeep}% of policies renew each year</i>`;
-  $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*RATES.pms)} per client · ${per(p.pmsPct, p.pmsN)}<i>Min. ₹50L per client</i>`;
+  $('pmsNote').innerHTML = `${inr(Math.max(p.pmsInv,RATES.pmsMin)*p.pmsTrail/100)} a year per client · ${per(p.pmsPct, p.pmsN)}<i>${p.pmsTrail}% trail p.a. on PMS money placed (min. ₹50L per client); it grows with the market</i>`;
   $('dematNote').innerHTML = `${inr(RATES.dematPerMonth*12)} per active client / yr<i>${amt ? n0(p.dematN) + ' active clients' : p.dematPct + '% of clients trade actively'}</i>`;
   ['life','health','pms','demat'].forEach(k => $('card-'+k).classList.toggle('on', p[k+'On']));
 
@@ -1129,7 +1133,7 @@ function buildRecord(){
     activeYears:p.activeYears, trailRatePct:p.trail, cagrPct:p.cagr,
     lifeOn:p.lifeOn, lifePct:p.lifePct, lifePremium:p.lifePrem, lifeCommissionPct:p.lifeComm,
     healthOn:p.healthOn, healthPct:p.healthPct, healthPremium:p.healthPrem, healthCommissionPct:p.healthComm, healthRenewalPct:p.healthRenew, healthRenewingPct:p.healthKeep,
-    pmsOn:p.pmsOn, pmsPct:p.pmsPct, pmsInvestment:p.pmsInv,
+    pmsOn:p.pmsOn, pmsPct:p.pmsPct, pmsInvestment:p.pmsInv, pmsTrailPct:p.pmsTrail,
     sipStopPct:p.sipStop, stepUpYears:p.stepYears ?? '',
     dematOn:p.dematOn, dematPct:p.dematPct,
     projNetSalesMonth: Math.round(proj.months[0].netSales), projNetSales12m: Math.round(proj.netSales12),
@@ -1310,7 +1314,7 @@ function buildReportEl(){
           : kv('Starting clients / AUM', n0(p.startClients)+' / ₹'+p.startAum+' Cr') + kv('New clients / month', n0(p.newClients) + (p.clientCap ? ` (cap ${n0(p.clientCap)})` : '')) + kv('SIP / lumpsum per new client', inr(p.sip)+' / '+inr(p.lump)+' one-time') + kv('Active years', p.activeYears+' yrs'))
         + kv('Business increase', `${p.inc}% every ${p.every || 3} months, drops ${p.fade ?? 0}%/yr`) + kv('Redemption / trail / CAGR', p.red+'% / '+p.trail+'% / '+p.cagr+'%')
         + kv('SIP behaviour', `${p.sipStop}% stop/yr · step-up ${p.sipStep}% ${p.stepYears === null ? 'every year' : p.stepYears === 0 ? '(none)' : 'for ' + p.stepYears + ' yrs'}`))}
-      ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}% + ${p.healthRenew}% renewals`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))}`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
+      ${box('Cross-sell', kv('Life', onOff(p.lifeOn, `${p.lifePct}% · ${inr(p.lifePrem)} · ${p.lifeComm}%`)) + kv('Health', onOff(p.healthOn, `${p.healthPct}% · ${inr(p.healthPrem)} · ${p.healthComm}% + ${p.healthRenew}% renewals`)) + kv('PMS', onOff(p.pmsOn, `${p.pmsPct}% · ${inr(Math.max(p.pmsInv,RATES.pmsMin))} · ${p.pmsTrail}% trail`)) + kv('Demat & broking', onOff(p.dematOn, p.dematPct+'% active')))}
     </div>
     <div style="display:flex;margin-top:12px;color:#fff;border-radius:8px;overflow:hidden">
       ${kpi('Year 1', at(1), '#1b2f4b')}${kpi('Year 5', at(5), '#243b5e')}${kpi('Year 10', at(10), '#2f4b75')}${kpi('Year 25', at(25), '#3a5f8f')}
@@ -1375,7 +1379,7 @@ function downloadCsv(){
    ['SIPs stopping per year %', rec.sipStopPct], ['Step-up lasts (years; blank = every year, 0 = none)', rec.stepUpYears === '' ? 'Every year' : rec.stepUpYears],
    ['Life insurance', yn(rec.lifeOn)], ['Life % of clients / yr', rec.lifePct], ['Life avg premium (₹)', rec.lifePremium], ['Life commission %', rec.lifeCommissionPct],
    ['Health insurance', yn(rec.healthOn)], ['Health % of clients / yr', rec.healthPct], ['Health avg premium (₹)', rec.healthPremium], ['Health commission %', rec.healthCommissionPct], ['Health renewal commission %', rec.healthRenewalPct], ['Health policies renewing each year %', rec.healthRenewingPct],
-   ['PMS', yn(rec.pmsOn)], ['PMS % of clients / yr', rec.pmsPct], ['PMS investment (₹)', rec.pmsInvestment],
+   ['PMS', yn(rec.pmsOn)], ['PMS % of clients / yr', rec.pmsPct], ['PMS investment (₹)', rec.pmsInvestment], ['PMS trail p.a. %', rec.pmsTrailPct],
    ['Demat & broking', yn(rec.dematOn)], ['Demat % clients active', rec.dematPct]].forEach(r => L.push(r));
   L.push([]);
   L.push(['Projected business', 'This month', 'First 12 months']);
@@ -1703,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activeYears:Math.min(pos(r.activeYears), 25), trail:pos(r.trailRatePct), cagr:pos(r.cagrPct),
       lifeOn:bool(r.lifeOn), lifePct:pos(r.lifePct), lifePrem:pos(r.lifePremium), lifeComm:pos(r.lifeCommissionPct),
       healthOn:bool(r.healthOn), healthPct:pos(r.healthPct), healthPrem:pos(r.healthPremium), healthComm:pos(r.healthCommissionPct), healthRenew:pos(r.healthRenewalPct), healthKeep:pos(r.healthRenewingPct),
-      pmsOn:bool(r.pmsOn), pmsPct:pos(r.pmsPct), pmsInv:Math.max(pos(r.pmsInvestment), RATES.pmsMin), dematOn:bool(r.dematOn), dematPct:pos(r.dematPct),
+      pmsOn:bool(r.pmsOn), pmsPct:pos(r.pmsPct), pmsInv:Math.max(pos(r.pmsInvestment), RATES.pmsMin), pmsTrail:(r.pmsTrailPct === '' || r.pmsTrailPct == null) ? 1 : pos(r.pmsTrailPct), dematOn:bool(r.dematOn), dematPct:pos(r.dematPct),
       sipStop: Math.min(pos(r.sipStopPct), 100),
       // older rows used 0 = every year; new rows use blank = every year, 0 = none
       stepYears: isNew ? (opt(r.stepUpYears) === null ? null : Math.min(pos(r.stepUpYears), 25)) : (pos(r.stepUpYears) > 0 ? Math.min(pos(r.stepUpYears), 25) : null)
@@ -2121,7 +2125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     inB.forEach(p => rms[p.rm] = p.rmName);
     opts('tfRm', Object.keys(rms).sort((a, b) => rms[a].localeCompare(rms[b])).map(r => [r, rms[r]]), tf.rm, 'All RMs');
     const title = String((window.APP_USER && APP_USER.user && APP_USER.user.title) || '');
-    const isRm = /^(rm|relationship manager)$/i.test(title.trim()) || (P.length > 0 && P.every(p => p.rm === me()));
+    const team = R.filter(r => String(r.email || '').toLowerCase() !== me());           // people under this person (from Hierarchy)
+    const isRm = !team.length && (/^(rm|relationship manager)$/i.test(title.trim()) || P.every(p => p.rm === me()));
     $('tfRm').closest('label').hidden = isRm;
     const list = inScope();
     if (tf.partner && !list.some(p => p.email === tf.partner)) tf.partner = '';
