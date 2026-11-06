@@ -1292,8 +1292,12 @@ function buildReportEl(){
   const onOff = (on, txt) => on ? txt : 'Off';
   const th = 'style="text-align:right;padding:5px 6px;font-size:9px;font-weight:600;color:#243b5e;background:#e3ebf5;border-bottom:1px solid #c5d5e8"';
   const td = 'style="text-align:right;padding:4px 6px;font-size:9.5px;color:#13233a;border-bottom:1px solid #edf1f6"';
-  const tableRows = projYears().map(y => { const r = at(y);
-    return `<tr${y > Math.ceil(p.mode === 'amount' ? Math.max(p.sipYears, p.lumpYears) : p.activeYears) ? ' style="opacity:.45"' : ''}><td ${td.replace('right','left')}><b>${y}</b></td><td ${td}>${r.clients === null ? inr(r.newSipYr) : n0(r.clients)}</td><td ${td}>${inr(r.sipYr)}</td><td ${td}>${r.stepYr>0?inr(r.stepYr):'—'}</td><td ${td}>${inr(r.lumpYr)}</td><td ${td}>${inr(r.gains)}</td><td ${td}><b>${inr(r.aum)}</b></td><td ${td}>${inr(r.sipBook)}</td><td ${td}>${inr(r.trail)}</td><td ${td}>${r.cross>0?'+'+inr(r.cross):'—'}</td><td ${td}>${r.demat>0?'+'+inr(r.demat):'—'}</td><td ${td}><span style="font-weight:600;color:#2f4b75">${inr(r.total)}</span> <span style="color:#5f6f86;font-size:8.5px">${inr(r.total/12)}/mo</span></td><td ${td}>${r.uplift>0?`<span style="background:#e1f1e9;color:#2e7d57;font-weight:600;border-radius:9px;padding:1px 6px">+${Math.round(r.uplift)}%</span>`:'—'}</td></tr>`; }).join('');
+  const yearsList = projYears(), many = yearsList.length > 7;
+  const tdc = many ? td.replace('padding:4px 6px', 'padding:3px 6px') : td;
+  const rowHtml = y => { const r = at(y), td = tdc;
+    return `<tr${y > Math.ceil(p.mode === 'amount' ? Math.max(p.sipYears, p.lumpYears) : p.activeYears) ? ' style="opacity:.45"' : ''}><td ${td.replace('right','left')}><b>${y}</b></td><td ${td}>${r.clients === null ? inr(r.newSipYr) : n0(r.clients)}</td><td ${td}>${inr(r.sipYr)}</td><td ${td}>${r.stepYr>0?inr(r.stepYr):'—'}</td><td ${td}>${inr(r.lumpYr)}</td><td ${td}>${inr(r.gains)}</td><td ${td}><b>${inr(r.aum)}</b></td><td ${td}>${inr(r.sipBook)}</td><td ${td}>${inr(r.trail)}</td><td ${td}>${r.cross>0?'+'+inr(r.cross):'—'}</td><td ${td}>${r.demat>0?'+'+inr(r.demat):'—'}</td><td ${td}><span style="font-weight:600;color:#2f4b75">${inr(r.total)}</span> <span style="color:#5f6f86;font-size:8.5px">${inr(r.total/12)}/mo</span></td><td ${td}>${r.uplift>0?`<span style="background:#e1f1e9;color:#2e7d57;font-weight:600;border-radius:9px;padding:1px 6px">+${Math.round(r.uplift)}%</span>`:'—'}</td></tr>`; };
+  // Every-year view: Years 1–10 on page 1, 11–25 on page 2 (header repeated), so rows never split across pages
+  const part1 = many ? yearsList.slice(0, 10) : yearsList, part2 = many ? yearsList.slice(10) : [];
   const box = (title, body) => `<div style="flex:1;border:1px solid #dbe3ee;border-radius:8px;padding:10px 14px"><div style="font-size:11px;font-weight:600;color:#3a5f8f;margin-bottom:4px">${title}</div><table style="width:100%;font-size:11px;border-collapse:collapse">${body}</table></div>`;
   const chartBox = (t, sub, k) => `<div class="pdf-chart" style="width:502px;box-sizing:border-box;border:1px solid #dbe3ee;border-radius:8px;padding:9px 10px 6px;margin-bottom:12px;background:#fff"><div style="font-size:12px;font-weight:600;color:#1b2f4b">${t}</div><div style="font-size:9.5px;color:#5f6f86;margin-bottom:4px">${sub}</div>${imgs[k]?`<img src="${imgs[k]}" style="width:480px;height:245px;display:block">`:''}</div>`;
   const kpi = (l, r, bg) => `<div style="flex:1;padding:9px 14px;background:${bg}"><div style="color:#c5d5e8;font-size:10px">${l} income</div><div style="font-size:15px;font-weight:600">${inr(r.total)}/yr</div><div style="color:#c5d5e8;font-size:10px">${inr(r.total/12)}/mo · AUM ${inr(r.aum)}</div></div>`;
@@ -1322,8 +1326,14 @@ function buildReportEl(){
     <div style="font-size:13px;font-weight:600;margin:14px 0 6px;color:#1b2f4b">25-year income projections</div>
     <table style="width:100%;border-collapse:collapse;border:1px solid #dbe3ee">
       <thead><tr><th ${th.replace('right','left')}>Year</th><th ${th}>${p.mode === 'amount' ? 'New SIP added / yr' : 'Clients'}</th><th ${th}>SIP contrib. / yr</th><th ${th}>Step-up SIP / yr</th><th ${th}>Lumpsum / yr</th><th ${th}>Mkt. gains</th><th ${th}>Total AUM</th><th ${th}>Avg SIP book / mo</th><th ${th}>Trail</th><th ${th}>Cross-sell</th><th ${th}>Demat</th><th ${th}>Total</th><th ${th}>Uplift</th></tr></thead>
-      <tbody>${tableRows}</tbody>
+      <tbody>${part1.map(rowHtml).join('')}</tbody>
     </table>
+    ${part2.length ? `<div class="html2pdf__page-break"></div>
+    <div style="font-size:13px;font-weight:600;margin:4px 0 6px;color:#1b2f4b">25-year income projections (continued)</div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #dbe3ee">
+      <thead><tr><th ${th.replace('right','left')}>Year</th><th ${th}>${p.mode === 'amount' ? 'New SIP added / yr' : 'Clients'}</th><th ${th}>SIP contrib. / yr</th><th ${th}>Step-up SIP / yr</th><th ${th}>Lumpsum / yr</th><th ${th}>Mkt. gains</th><th ${th}>Total AUM</th><th ${th}>Avg SIP book / mo</th><th ${th}>Trail</th><th ${th}>Cross-sell</th><th ${th}>Demat</th><th ${th}>Total</th><th ${th}>Uplift</th></tr></thead>
+      <tbody>${part2.map(rowHtml).join('')}</tbody>
+    </table>` : ''}
     <div style="color:#5f6f86;font-size:9.5px;line-height:1.5;margin-top:8px">${$('footNote').innerHTML}</div>
     <div class="html2pdf__page-break"></div>
     <div style="font-size:13px;font-weight:600;color:#1b2f4b;margin:4px 0 10px">Charts</div>
@@ -1345,8 +1355,8 @@ async function downloadPdf(){
     const fname = `Income_Projection_${((partner.partnerEmail || 'Partner').split('@')[0]).replace(/[^\w-]+/g,'_')}_${date}.pdf`;
     await html2pdf().set({
       margin:[6,6,8,6], filename:fname, image:{ type:'jpeg', quality:0.96 },
-      html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff' },
-      jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }, pagebreak:{ mode:['css','legacy'], avoid:['.pdf-chart','tr'] }
+      html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', scrollY:0 },
+      jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }, pagebreak:{ mode:['legacy'] }
     }).from(buildReportEl()).save();
     toast('PDF downloaded.');
   } catch(e){
@@ -1796,7 +1806,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const date = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Kolkata' }).format(new Date());
       await html2pdf().set({
         margin:[6,6,8,6], filename:`Performance_Review_${((partner ? partner.split('@')[0] : (TEAM ? selectionLabel() : '')) || 'Partner').replace(/[^\w-]+/g,'_')}_${date}.pdf`,
-        image:{ type:'jpeg', quality:0.95 }, html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', windowWidth:1400 },
+        image:{ type:'jpeg', quality:0.95 }, html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', windowWidth:1400, scrollY:0 },
         jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }, pagebreak:{ mode:['css','legacy'], avoid:['.chart-card','tr','.ytd','.summary-card'] }
       }).from($('insBody')).save();
       toast('PDF downloaded.');
