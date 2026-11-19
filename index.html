@@ -46,6 +46,12 @@
   .login-msg.err{color:var(--red)}
   .login-foot{font-size:11px;color:#9aa8ba;margin-top:14px}
   .login-go{padding:10px 18px;font-size:13.5px;gap:10px;border-radius:999px}
+  .login-progress{display:none;margin:6px auto 4px;max-width:300px}
+  body.signing .login-progress{display:block}
+  body.signing .login-tabs, body.signing #ltPartner, body.signing #ltEmployee{display:none!important}
+  .login-progress .t{height:6px;background:var(--b100);border-radius:3px;overflow:hidden}
+  .login-progress .f{height:100%;width:0;background:var(--b600);border-radius:3px;transition:width .25s}
+  .login-progress .l{font-size:12.5px;color:var(--b700);margin-top:8px}
   .login-tabs{display:flex;background:var(--b50);border:1px solid var(--b100);border-radius:999px;padding:3px;margin:4px auto 16px;max-width:260px}
   .login-tabs button{flex:1;border:0;background:transparent;border-radius:999px;padding:7px 0;font:inherit;font-size:13px;font-weight:600;color:var(--b700);cursor:pointer}
   .login-tabs button.on{background:var(--b900);color:#fff}
@@ -438,6 +444,7 @@
   <div class="login-card">
     <div class="login-brand">wealthy.in</div>
     <h1>Partner Business Projection</h1>
+    <div class="login-progress" id="loginProgress"><div class="t"><div class="f" id="lpFill"></div></div><div class="l" id="lpText">Signing you in… 0%</div></div>
     <div class="login-tabs" role="tablist"><button type="button" class="on" data-lt="partner" role="tab">Partner</button><button type="button" data-lt="employee" role="tab">Employee</button></div>
     <div id="ltPartner">
       <p>Enter your registered email to view your projection and performance.</p>
@@ -752,7 +759,7 @@
 /* ================== CONFIG ==================
    The Google Sheet link is set in config.js (window.SHEETS_ENDPOINT).
    When this page is served from Apps Script itself, no link is needed. */
-const MIN_BACKEND = '2026.10.31-y';   // Code.gs version this page needs
+const MIN_BACKEND = '2026.11.06-z';   // Code.gs version this page needs
 const SHEETS_ENDPOINT = String(window.SHEETS_ENDPOINT || '').trim();
 /* Authentication hook for later: return a sign-in token (e.g. a Google ID token)
    and the backend can verify it. Returning null means "no login" — today's behaviour. */
@@ -1276,6 +1283,7 @@ async function confirmSubmit(){
     $('doneId').textContent = res.id; $('doneTime').textContent = 'Saved on ' + lastSubmission.time;
     $('modalReview').hidden = true; $('modalDone').hidden = false;
     $('submitStatus').textContent = `Submitted · Ref ${res.id} · ${lastSubmission.time}`; $('submitStatus').className = 'status ok';
+    if (res.note){ toast(res.note); $('doneTime').textContent += ' · ' + res.note; }
     setConn('ok', 'Sheet connected');
     markDirty();
   } catch(e){
@@ -1451,7 +1459,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#projView button').forEach(b => b.addEventListener('click', () => {
     projView = b.dataset.v; document.querySelectorAll('#projView button').forEach(x => x.classList.toggle('on', x === b)); render(); }));
   ['partnerEmail', 'rmEmail', 'remarks'].forEach(id => $(id).value = '');
-  $('targetMonth').value = istMonthValue();
+  $('targetMonth').value = istMonthValue(); $('targetMonth').min = istMonthValue();
   window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
   $('pmsInv').addEventListener('change', () => {
     const v = parseFloat($('pmsInv').value);
@@ -1574,7 +1582,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function accept(t, silent){
     const exp = expiryOf(t);
     if (!exp || exp < Date.now() + 30000){ clear(); if (!silent) lock('Your sign-in has expired. Please sign in again.', true); return false; }
-    if (!silent) setMsg('Checking your access…');
+    if (!silent && !document.body.classList.contains('signing')) setMsg('Checking your access…');
     try{
       const j = await whoami(t);
       token = t; try { sessionStorage.setItem(STORE, t); } catch(_){}
@@ -1655,11 +1663,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Coming back from the Apps Script login page with a pass in the address (#auth=…)
     const m = location.hash.match(/[#&]auth=([^&]+)/);
-    if (m){ history.replaceState(null, '', location.pathname + location.search); }
+    let progT = null;
+    if (m){
+      history.replaceState(null, '', location.pathname + location.search);
+      // Show "Signing you in" with a progress bar instead of the sign-in options
+      document.body.classList.add('signing'); let pc = 0;
+      progT = setInterval(() => { pc = Math.min(95, pc + (95 - pc) * 0.15 + 1); $('lpFill').style.width = pc + '%'; $('lpText').textContent = 'Signing you in… ' + Math.round(pc) + '%'; }, 120);
+    }
+    const doneProgress = () => { if (!progT) return; clearInterval(progT); progT = null;
+      $('lpFill').style.width = '100%'; $('lpText').textContent = 'Signing you in… 100%'; setTimeout(() => document.body.classList.remove('signing'), 150); };
     let stored = m ? decodeURIComponent(m[1]) : null;
     if (!stored){ try { stored = sessionStorage.getItem(STORE); } catch(_){} }
     lock('');
-    if (stored && await accept(stored, !m)) { if (!LOGIN_URL) initGsi(); return; }   // signed in: straight into the app
+    const signedIn = stored && await accept(stored, !m);
+    doneProgress();
+    if (signedIn) { if (!LOGIN_URL) initGsi(); return; }   // signed in: straight into the app
     initGsi();
   });
 })();
