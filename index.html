@@ -348,9 +348,22 @@
   .ins-filters label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--b700)}
   .ins-filters label.wide select{min-width:280px}
   .ins-filters label[hidden]{display:none}
-  .ins-filters .tf-q{font:inherit;font-size:12px;padding:5px 9px;border:1px solid var(--b200);border-radius:8px 8px 0 0;border-bottom:0;background:var(--b50);color:var(--b900);font-weight:400}
-  .ins-filters .tf-q:focus{outline:none;background:#fff;border-color:var(--b500)}
-  .ins-filters .tf-q + select{border-radius:0 0 8px 8px}
+  /* Searchable dropdowns (the native select stays hidden and drives the logic) */
+  .dd{position:relative;min-width:170px}
+  .ins-filters label.wide .dd{min-width:300px}
+  .dd select{display:none}
+  .dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;font:inherit;font-size:13px;font-weight:400;padding:7px 10px;border:1px solid var(--b200);border-radius:8px;background:#fff;color:var(--b900);cursor:pointer;text-align:left}
+  .dd-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dd-btn::after{content:"▾";color:var(--b500);font-size:11px}
+  .dd.open .dd-btn{border-color:var(--b500)}
+  .dd-panel{display:none;position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:100%;width:max-content;max-width:420px;background:#fff;border:1px solid var(--b200);border-radius:10px;box-shadow:0 12px 30px rgba(27,47,75,.16);padding:6px}
+  .dd.open .dd-panel{display:block}
+  .dd-panel input{width:100%;box-sizing:border-box;font:inherit;font-size:12.5px;font-weight:400;padding:7px 9px;border:1px solid var(--b200);border-radius:7px;margin-bottom:4px;color:var(--b900)}
+  .dd-panel input:focus{outline:none;border-color:var(--b500)}
+  .dd-list{max-height:260px;overflow:auto}
+  .dd-item{padding:7px 9px;border-radius:6px;font-size:12.5px;font-weight:400;color:var(--b900);cursor:pointer;white-space:nowrap}
+  .dd-item:hover,.dd-item.hl{background:var(--b50)} .dd-item.sel{font-weight:600;color:var(--b700)}
+  .dd-none{padding:8px 9px;font-size:12px;color:var(--muted)}
   #teamNote{background:#fff7e6;border:1px solid #f0d9a8;color:#7a5200;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
   .tf-info{font-size:11.5px;color:var(--muted);margin-left:auto;align-self:center}
   #teamNote.info{background:#eef4fb;border-color:#c5d5e8;color:var(--b700)}
@@ -657,10 +670,10 @@
 
 <div id="insightsView" class="ins" hidden>
   <section class="ins-filters" id="insFilters">
-    <label>Cluster<input type="search" class="tf-q" data-for="tfCluster" placeholder="Search cluster"><select id="tfCluster"></select></label>
-    <label>Branch<input type="search" class="tf-q" data-for="tfBranch" placeholder="Search branch"><select id="tfBranch"></select></label>
-    <label>RM<input type="search" class="tf-q" data-for="tfRm" placeholder="Search RM"><select id="tfRm"></select></label>
-    <label class="wide">Partner<input type="search" class="tf-q" data-for="tfPartner" placeholder="Search partner email"><select id="tfPartner"></select></label>
+    <label>Cluster<select id="tfCluster"></select></label>
+    <label>Branch<select id="tfBranch"></select></label>
+    <label>RM<select id="tfRm"></select></label>
+    <label class="wide">Partner<select id="tfPartner"></select></label>
     <button class="btn btn-plain" id="tfRefresh" type="button">↻ Refresh</button>
     <span class="tf-info" id="tfInfo"></span>
   </section>
@@ -2208,12 +2221,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const FULL = {};
   function drawOpts(sel, cur){
     const f = FULL[sel]; if (!f) return;
-    const q = String((document.querySelector(`.tf-q[data-for="${sel}"]`) || {}).value || '').trim().toLowerCase();
-    const shown = q ? f.items.filter(([v, t]) => (t + ' ' + v).toLowerCase().includes(q) || v === cur) : f.items;
-    const n = q ? f.items.filter(([v, t]) => (t + ' ' + v).toLowerCase().includes(q)).length : 0;
-    $(sel).innerHTML = `<option value="">${q ? `${f.all} · ${n} match${n === 1 ? '' : 'es'}` : f.all}</option>`
-      + shown.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    $(sel).innerHTML = `<option value="">${f.all}</option>` + f.items.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    ddSync(sel);
   }
+  /* Searchable dropdown: a button shows the choice; the panel has a search box and the list */
+  function ddMake(sel){
+    const s = $(sel); if (s.closest('.dd')) return;
+    const wrap = document.createElement('div'); wrap.className = 'dd'; s.parentNode.insertBefore(wrap, s); wrap.appendChild(s);
+    wrap.insertAdjacentHTML('beforeend', `<button type="button" class="dd-btn"><span></span></button><div class="dd-panel"><input type="search" placeholder="Search…" aria-label="Search"><div class="dd-list"></div></div>`);
+    const btn = wrap.querySelector('.dd-btn'), q = wrap.querySelector('input'), list = wrap.querySelector('.dd-list');
+    const draw = () => {
+      const t = q.value.trim().toLowerCase(), all = [...s.options];
+      const items = all.filter(o => !t || !o.value || (o.text + ' ' + o.value).toLowerCase().includes(t));
+      const real = items.filter(o => o.value).length;
+      list.innerHTML = items.map((o, i) => `<div class="dd-item${o.value === s.value ? ' sel' : ''}${t && i === (items[0] && !items[0].value && items.length > 1 ? 1 : 0) ? ' hl' : ''}" data-v="${esc(o.value)}">${esc(o.text)}</div>`).join('')
+        + (t && !real ? '<div class="dd-none">No matches</div>' : '');
+    };
+    const pick = v => { wrap.classList.remove('open'); if (s.value !== v){ s.value = v; s.dispatchEvent(new Event('change')); } ddSync(sel); };
+    btn.addEventListener('click', () => { const open = !wrap.classList.contains('open');
+      document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+      if (open){ wrap.classList.add('open'); q.value = ''; draw(); setTimeout(() => q.focus(), 0); } });
+    q.addEventListener('input', draw);
+    q.addEventListener('keydown', e => {
+      if (e.key === 'Escape'){ wrap.classList.remove('open'); btn.focus(); }
+      if (e.key === 'Enter'){ e.preventDefault(); const hl = list.querySelector('.dd-item.hl') || list.querySelector('.dd-item[data-v]:not([data-v=""])'); if (hl) pick(hl.dataset.v); }
+    });
+    list.addEventListener('click', e => { const it = e.target.closest('.dd-item'); if (it) pick(it.dataset.v); });
+    ddSync(sel);
+  }
+  function ddSync(sel){ const s = $(sel), w = s && s.closest('.dd'); if (!w) return; const o = s.options[s.selectedIndex]; w.querySelector('.dd-btn span').textContent = o ? o.text : ''; }
+  document.addEventListener('click', e => { if (!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open')); });
   function selectionLabel(){
     const parts = [tf.cluster, tf.branch, tf.rm && (TEAM.partners.find(p => p.rm === tf.rm) || {}).rmName].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'All partners';
@@ -2290,21 +2327,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function wireFilters(){
     const on = (id, fn) => $(id).addEventListener('change', e => { fn(e.target.value); fillFilters(); applySelection(); });
-    const clearQ = (...ids) => ids.forEach(id => { const q = document.querySelector(`.tf-q[data-for="${id}"]`); if (q) q.value = ''; });
-    on('tfCluster', v => { tf.cluster = v; tf.branch = ''; tf.rm = ''; tf.partner = ''; clearQ('tfBranch', 'tfRm', 'tfPartner'); });
-    on('tfBranch', v => { tf.branch = v; tf.rm = ''; tf.partner = ''; clearQ('tfRm', 'tfPartner'); });
-    on('tfRm', v => { tf.rm = v; tf.partner = ''; clearQ('tfPartner'); });
+    on('tfCluster', v => { tf.cluster = v; tf.branch = ''; tf.rm = ''; tf.partner = ''; });
+    on('tfBranch', v => { tf.branch = v; tf.rm = ''; tf.partner = ''; });
+    on('tfRm', v => { tf.rm = v; tf.partner = ''; });
     on('tfPartner', v => { tf.partner = v; });
     $('tfRefresh').addEventListener('click', () => loadInsights(true));
-    document.querySelectorAll('.tf-q').forEach(inp => {
-      const sel = inp.dataset.for, key = { tfCluster:'cluster', tfBranch:'branch', tfRm:'rm', tfPartner:'partner' }[sel];
-      inp.addEventListener('input', () => {
-        drawOpts(sel, tf[key]);
-        // one match: pick it straight away
-        const opts = [...$(sel).options].filter(o => o.value);
-        if (inp.value.trim() && opts.length === 1 && tf[key] !== opts[0].value){ $(sel).value = opts[0].value; $(sel).dispatchEvent(new Event('change')); }
-      });
-    });
+    ['tfCluster', 'tfBranch', 'tfRm', 'tfPartner'].forEach(ddMake);
   }
 
   /* ---------- tabs & wiring ---------- */
