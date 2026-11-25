@@ -709,11 +709,11 @@
       <section class="ytd" id="insYtd"></section>
       <section class="summary-card" id="insSummary"></section>
       <div class="res-bar">
-        <div><h2>Commitment vs actual</h2><div class="sub" id="insViewSub"></div></div>
+        <div><h2>Target vs achieved</h2><div class="sub" id="insViewSub"></div></div>
         <div class="seg" id="insView"><button type="button" data-v="m" class="on">Monthly</button><button type="button" data-v="q">Quarterly</button></div>
       </div>
       <div class="table-wrap"><table class="proj perf" id="insTable"></table></div>
-      <p class="ins-note">Commitment for a month comes from the partner's projection for that month, or is carried forward from their latest earlier projection (up to 12 months). Quarters follow the financial year (Q1 = Apr–Jun). In a quarter, SIP book is the last recorded month; other figures are totals.</p>
+      <p class="ins-note">Target = the partner's projection for that month (or their latest earlier one, up to 12 months). % = achieved ÷ target. Quarters follow the financial year.</p>
       <div class="charts">
         <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC1T"></h3><p id="insC1S"></p></div></div><div class="chart-box"><canvas id="insC1" role="img" aria-label="New clients actual versus committed"></canvas></div></div>
         <div class="chart-card"><div class="chart-head"><div><h3 class="ch-title" id="insC2T"></h3><p id="insC2S"></p></div></div><div class="chart-box"><canvas id="insC2" role="img" aria-label="Cumulative new clients"></canvas></div></div>
@@ -1840,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', () => {
       $('insPartnerSub').textContent = `${n} partner${n === 1 ? '' : 's'} · ${withAct} with actuals`;
       const w = $('insWarn'); w.hidden = false;
       w.textContent = !n ? 'No partners match these filters.'
-        : `Totals for the ${n} partner${n === 1 ? '' : 's'} in this selection. Choose a partner to see their details${own ? ' or record actuals for your own partners' : ''}.`;
+        : `Combined for ${n} partner${n === 1 ? '' : 's'}. Pick a partner for details${own ? ' or to record actuals' : ''}.`;
       return;
     }
     const last = DATA.subs[DATA.subs.length - 1];
@@ -1889,7 +1889,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- 3. periods (monthly or quarterly) ---------- */
+  // Months with a target but no actuals yet (from the first target month up to the current month)
+  function targetOnlyRows(recorded){
+    const have = new Set(recorded.map(r => r.key)), now = istMonthValue(), out = {};
+    const add = (m, c) => { if (!c) return; const r = out[m] || (out[m] = { key: m, label: monthShort(m), span: '', months: 1, recorded: 0, last: m, missing: true,
+      act: { newClients:0, sipBook:0, netSales:0, life:0, health:0, pms:0, demat:0, lifeP:0, healthP:0, pmsA:0 }, com: { newClients:0, sipBook:0, netSales:0 } });
+      r.com.newClients += c.newClients; r.com.sipBook += c.sipBook; r.com.netSales += c.netSales; };
+    const walk = subs => { if (!subs.length) return; let m = subs[0].month;
+      while (m <= now){ if (!have.has(m)) add(m, commitmentFor(m, subs)); const [y, mo] = m.split('-').map(Number); m = mo === 12 ? (y + 1) + '-01' : y + '-' + String(mo + 1).padStart(2, '0'); } };
+    if (DATA.agg) DATA.agg.forEach(p => walk(p.subs)); else walk(DATA.subs);
+    return Object.values(out);
+  }
   function monthlyRows(){
+    const rec = recordedRows();
+    return [...rec, ...targetOnlyRows(rec)].sort((a, b) => a.key.localeCompare(b.key));
+  }
+  function recordedRows(){
     if (DATA.agg){
       const by = {};
       DATA.agg.forEach(p => p.sales.forEach(a => {
@@ -1913,7 +1928,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function quarterlyRows(){
     const out = {};
-    monthlyRows().forEach(r => {
+    recordedRows().forEach(r => {
       const q = fyQuarter(r.key);
       const g = out[q.key] || (out[q.key] = { key: q.key, label: q.label, span: q.span, months: 3, recorded: 0, last: r.key,
         act: { newClients:0, sipBook:0, netSales:0, life:0, health:0, pms:0, demat:0, lifeP:0, healthP:0, pmsA:0 }, com: null, _sip: null });
@@ -1937,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- year to date (financial year of the latest recorded month) ---------- */
   function ytdRows(){
-    const m = monthlyRows(); if (!m.length) return { fy: null, rows: [] };
+    const m = recordedRows(); if (!m.length) return { fy: null, rows: [] };
     const fy = fyOf(m[m.length - 1].key); return { fy, rows: m.filter(r => fyOf(r.key) === fy) };
   }
   function renderYtd(){
@@ -1947,10 +1962,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const sum = (list, k, src = 'act') => list.reduce((s, r) => s + r[src][k], 0);
     const newA = sum(wc, 'newClients'), newC = sum(wc, 'newClients', 'com'), netA = sum(wc, 'netSales'), netC = sum(wc, 'netSales', 'com');
     const sipA = last.act.sipBook, sipC = last.com ? last.com.sipBook : null;
-    const metric = (k, v, a, c, fmt, word = 'committed') => {
+    const metric = (k, v, a, c, fmt) => {
       const p = c > 0 ? a / c * 100 : null, b = band(p);
-      const line = c == null || !wc.length ? 'No commitment to compare' : c > 0 ? `of <b>${fmt(c)}</b> ${word} · <b>${p >= 200 ? (p >= 1000 ? 'over 10×' : (p / 100).toFixed(1) + '×') : Math.round(p) + '%'}</b>`
-                 : `vs <b>${fmt(c)}</b> projected · <b>${a >= c ? 'ahead' : 'behind'}</b>`;
+      const line = c == null || !wc.length ? 'No target to compare' : c > 0 ? `Target <b>${fmt(c)}</b> · <b>${p >= 200 ? (p >= 1000 ? 'over 10×' : (p / 100).toFixed(1) + '×') : Math.round(p) + '%'}</b> achieved`
+                 : `Target <b>${fmt(c)}</b> · <b>${a >= c ? 'ahead' : 'behind'}</b>`;
       return `<div class="ytd-m"><div class="k">${k}</div><div class="v">${v}</div><div class="c">${line}</div><div class="ytd-bar"><i class="${c > 0 ? b : (c == null ? '' : a >= c ? 'good' : 'low')}" style="width:${p == null ? (c == null ? 0 : 100) : Math.min(100, p)}%"></i></div></div>`;
     };
     const xs = [['life', sum(rows, 'life')], ['health', sum(rows, 'health')], ['PMS', sum(rows, 'pms')], ['demat', sum(rows, 'demat')]];
@@ -1959,8 +1974,8 @@ document.addEventListener('DOMContentLoaded', () => {
     box.innerHTML = `<div class="ytd-head"><h3>FY${String(fy).slice(2)} year to date</h3><span>${esc(monthShort(first))} – ${esc(monthShort(last.key))} · ${monthsN} month${monthsN === 1 ? '' : 's'} recorded</span></div>
       <div class="ytd-grid">
         ${metric('New clients', fmtCount(newA), newA, wc.length ? newC : null, fmtCount)}
-        ${metric('MF net sales', signedInr(netA), netA, wc.length ? netC : null, signedInr, 'projected')}
-        ${metric('SIP book (latest month)', inr(sipA), sipA, sipC, inr, 'projected')}
+        ${metric('MF net sales', signedInr(netA), netA, wc.length ? netC : null, signedInr)}
+        ${metric('SIP book (latest month)', inr(sipA), sipA, sipC, inr)}
         <div class="ytd-m"><div class="k">Cross-sell</div><div class="v">${fmtCount(xsTotal)}</div><div class="c">${xs.filter(x => x[1] > 0).map(x => `<b>${fmtCount(x[1])}</b> ${x[0]}`).join(' · ') || 'None recorded yet'}</div></div>
       </div>`;
   }
@@ -1978,10 +1993,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function renderTable(){
     const rows = periods();
-    $('insViewSub').textContent = rows.length ? `${rows.length} ${view === 'q' ? 'quarter' : 'month'}${rows.length === 1 ? '' : 's'} recorded` : '';
-    if (!rows.length){ $('insTable').innerHTML = '<tbody><tr><td class="empty">No actuals recorded yet. Save this month above to start.</td></tr></tbody>'; return; }
+    const nMiss = rows.filter(r => r.missing).length, nRec = rows.length - nMiss;
+    $('insViewSub').textContent = rows.length ? `${nRec} ${view === 'q' ? 'quarter' : 'month'}${nRec === 1 ? '' : 's'} recorded${nMiss ? ` · ${nMiss} month${nMiss === 1 ? '' : 's'} with sales data missing` : ''}` : '';
+    if (!rows.length){ $('insTable').innerHTML = '<tbody><tr><td class="empty">No targets or actuals yet.</td></tr></tbody>'; return; }
     const xs = (n, amt) => `${fmtCount(n)}${amt ? `<small style="display:block;color:var(--muted);font-size:10px">${inr(amt)}</small>` : ''}`;
-    const body = [...rows].reverse().map(r => { const a = r.act, c = r.com; return `<tr>
+    const nr = '<td class="dim">Not recorded</td><td class="dim">—</td>';
+    const body = [...rows].reverse().map(r => { const a = r.act, c = r.com;
+      if (r.missing) return `<tr>
+        <td class="yr">${esc(r.label)}<small>${r.key === istMonthValue() ? 'Not recorded yet' : 'Sales data missing'}</small></td>
+        <td class="gs dim">${fmtCount(c.newClients)}</td>${nr}<td class="gs dim">${inr(c.sipBook)}</td>${nr}<td class="gs dim">${signedInr(c.netSales)}</td>${nr}
+        <td class="gs dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td></tr>`;
+      return `<tr>
         <td class="yr">${esc(r.label)}${r.span ? `<small>${esc(r.span)}${r.recorded < 3 ? ` · ${r.recorded} of 3 months` : ''}</small>` : ''}</td>
         <td class="gs dim">${c ? fmtCount(c.newClients) : '—'}</td><td class="strong">${fmtCount(a.newClients)}</td>${achCell(a.newClients, c ? c.newClients : null)}
         <td class="gs dim">${c && c.sipBook != null ? inr(c.sipBook) : '—'}</td><td class="strong">${inr(a.sipBook)}</td>${achCell(a.sipBook, c ? c.sipBook : null)}
@@ -1991,14 +2013,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Footer: financial year to date
     const fyNow = fyOf((monthlyRows().slice(-1)[0] || { key: istMonthValue() }).key);
-    const fyRowsT = rows.filter(r => fyOf(r.last) === fyNow);
+    const fyRowsT = rows.filter(r => !r.missing && fyOf(r.last) === fyNow);
     const withCom = fyRowsT.filter(r => r.com);
     const tA = k => fyRowsT.reduce((s, r) => s + r.act[k], 0);
     const tC = k => withCom.reduce((s, r) => s + r.com[k], 0);
     const newA = withCom.reduce((s, r) => s + r.act.newClients, 0), newC = tC('newClients');
     const netA = withCom.reduce((s, r) => s + r.act.netSales, 0), netC = tC('netSales');
     const last = fyRowsT[fyRowsT.length - 1];
-    const foot = `<tfoot><tr>
+    const foot = !last ? '' : `<tfoot><tr>
         <td class="yr">FY${String(fyNow).slice(2)} YTD<small>${fyRowsT.length} ${view === 'q' ? 'quarter' : 'month'}${fyRowsT.length === 1 ? '' : 's'}</small></td>
         <td class="gs">${withCom.length ? fmtCount(newC) : '—'}</td><td>${fmtCount(tA('newClients'))}</td>${achCell(newA, withCom.length ? newC : null)}
         <td class="gs">${last.com && last.com.sipBook != null ? inr(last.com.sipBook) : '—'}</td><td>${inr(last.act.sipBook)}</td>${achCell(last.act.sipBook, last.com ? last.com.sipBook : null)}
@@ -2010,8 +2032,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <th colspan="3" class="grp gs"><span>New clients</span></th><th colspan="3" class="grp gs"><span>SIP book (monthly)</span></th>
           <th colspan="3" class="grp gs"><span>MF net sales</span></th><th colspan="4" class="grp gs"><span>Cross-sell (count · amount)</span></th>
 </tr>
-        <tr><th class="gs">Committed</th><th>Actual</th><th>Achieved</th><th class="gs">Projected</th><th>Actual</th><th>Achieved</th>
-          <th class="gs">Projected</th><th>Actual</th><th>Achieved</th><th class="gs">Life</th><th>Health</th><th>PMS</th><th>Demat</th></tr>
+        <tr><th class="gs">Target</th><th>Actual</th><th>% of target</th><th class="gs">Target</th><th>Actual</th><th>% of target</th>
+          <th class="gs">Target</th><th>Actual</th><th>% of target</th><th class="gs">Life</th><th>Health</th><th>PMS</th><th>Demat</th></tr>
       </thead><tbody>${body}</tbody>${foot}`;
   }
 
@@ -2036,32 +2058,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const setHead = (i, title, sub) => { $(`insC${i}T`).textContent = title; $(`insC${i}S`).textContent = sub; };
 
     // 1. New clients
-    setHead(1, `New clients per ${unit}`, 'Actual new clients against the partner\'s commitment.');
-    chart('c1', 'insC1', { type:'bar', data:{ labels, datasets:[ commitLine('Committed', rows.map(r => r.com ? r.com.newClients : null)),
-      { label:'Actual', _noLegend:true, data: rows.map(r => r.act.newClients), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.newClients, r => r.com.newClients) } ] },
-      options: opts(fmtCount, legend([swatch('Actual: met', MET), swatch('Actual: missed', MISS)])) });
+    setHead(1, `New clients per ${unit}`, 'Bars: achieved · dashed line: target');
+    chart('c1', 'insC1', { type:'bar', data:{ labels, datasets:[ commitLine('Target', rows.map(r => r.com ? r.com.newClients : null)),
+      { label:'Actual', _noLegend:true, data: rows.map(r => r.missing ? null : r.act.newClients), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.newClients, r => r.com.newClients) } ] },
+      options: opts(fmtCount, legend([swatch('Target met', MET), swatch('Target missed', MISS)])) });
 
     // 2. YTD running total
-    const fyNow = fyOf((monthlyRows().slice(-1)[0] || { key: istMonthValue() }).key), ytd = rows.filter(r => fyOf(r.last) === fyNow);
+    const fyNow = fyOf((monthlyRows().slice(-1)[0] || { key: istMonthValue() }).key), ytd = rows.filter(r => !r.missing && fyOf(r.last) === fyNow);
     let cc = 0, ca = 0;
     const cumC = ytd.map(r => { cc += r.com ? r.com.newClients : 0; return Math.round(cc * 10) / 10; });
     const cumA = ytd.map(r => { ca += r.act.newClients; return Math.round(ca * 10) / 10; });
-    setHead(2, `New clients: FY${String(fyNow).slice(2)} year to date`, 'Running total of actual new clients against the running total committed.');
+    setHead(2, `New clients, FY${String(fyNow).slice(2)} to date`, 'Running total, achieved vs target');
     chart('c2', 'insC2', { type:'line', data:{ labels: ytd.map(r => r.label), datasets:[
-      { label:'Actual (YTD)', data: cumA, borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
-      commitLine('Committed (YTD)', cumC) ] }, options: opts(fmtCount, legend()) });
+      { label:'Achieved (YTD)', data: cumA, borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
+      commitLine('Target (YTD)', cumC) ] }, options: opts(fmtCount, legend()) });
 
     // 3. SIP book
-    setHead(3, `SIP book per ${unit}`, 'Actual monthly SIP book against the projected SIP book.');
+    setHead(3, `SIP book per ${unit}`, 'Achieved vs target');
     chart('c3', 'insC3', { type:'line', data:{ labels, datasets:[
-      { label:'Actual', data: rows.map(r => r.act.sipBook), borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
-      commitLine('Projected', rows.map(r => r.com ? r.com.sipBook : null)) ] }, options: opts(inrShort, legend()) });
+      { label:'Actual', data: rows.map(r => r.missing ? null : r.act.sipBook), spanGaps:true, borderColor:ACT, backgroundColor:rgba(ACT, .10), fill:'origin', tension:0, borderWidth:2.5, pointRadius:3 },
+      commitLine('Target', rows.map(r => r.com ? r.com.sipBook : null)) ] }, options: opts(inrShort, legend()) });
 
     // 4. MF net sales
-    setHead(4, `MF net sales per ${unit}`, 'Actual MF net sales (incl. lumpsum) against the projection.');
-    chart('c4', 'insC4', { type:'bar', data:{ labels, datasets:[ commitLine('Projected', rows.map(r => r.com ? r.com.netSales : null)),
-      { label:'Actual', _noLegend:true, data: rows.map(r => r.act.netSales), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.netSales, r => r.com.netSales) } ] },
-      options: opts(inrShort, legend([swatch('Actual: met', MET), swatch('Actual: missed', MISS)])) });
+    setHead(4, `MF net sales per ${unit}`, 'Bars: achieved (incl. lumpsum) · dashed line: target');
+    chart('c4', 'insC4', { type:'bar', data:{ labels, datasets:[ commitLine('Target', rows.map(r => r.com ? r.com.netSales : null)),
+      { label:'Actual', _noLegend:true, data: rows.map(r => r.missing ? null : r.act.netSales), order:1, borderRadius:3, maxBarThickness:34, backgroundColor: metColors(r => r.act.netSales, r => r.com.netSales) } ] },
+      options: opts(inrShort, legend([swatch('Target met', MET), swatch('Target missed', MISS)])) });
   }
 
   /* ---------- summary: short and crisp ---------- */
@@ -2074,14 +2096,28 @@ document.addEventListener('DOMContentLoaded', () => {
              netA: wc.reduce((s, r) => s + r.act.netSales, 0), netC: wc.reduce((s, r) => s + r.com.netSales, 0) };
   }
   function renderSummary(){
-    const box = $('insSummary'), m = monthlyRows();
+    const box = $('insSummary'), m = recordedRows(), miss = monthlyRows().filter(r => r.missing);
+    const cur = istMonthValue(), past = miss.filter(r => r.key < cur), now = miss.find(r => r.key === cur);
+    const missLine = [past.length ? `Sales data missing for ${past.slice(-4).map(r => r.label).join(', ')}${past.length > 4 ? ` and ${past.length - 4} earlier month${past.length - 4 === 1 ? '' : 's'}` : ''}.` : '',
+                      now ? `${now.label} sales not recorded yet.` : ''].filter(Boolean).join(' ');
+    if (!m.length && miss.length){
+      const t = miss[miss.length - 1].com;
+      box.innerHTML = `<h3>Summary <span class="chip na">${past.length ? 'Sales data missing' : 'No sales recorded yet'}</span></h3><ul>
+        <li>${esc(miss[miss.length - 1].label)} targets: ${esc(fmtCount(t.newClients))} new clients, SIP book ${esc(inr(t.sipBook))}, MF net sales ${esc(signedInr(t.netSales))}.</li>
+        <li>${esc(missLine)}</li></ul>${isPartnerMode() ? '' : '<div class="focus">Record actuals for these months to start tracking.</div>'}`;
+      return;
+    }
     if (!m.length){ box.innerHTML = '<h3>Summary <span class="chip na">No actuals yet</span></h3><ul><li>' + (isPartnerMode() ? 'No business has been recorded for you yet.' : DATA.agg ? 'No actuals recorded for this selection yet.' : 'Save this month\'s actuals above to see how the partner is tracking.') + '</li></ul>'; return; }
     const last = m[m.length - 1], a = last.act, c = last.com, M = monthShort(last.key);
     const pct = (x, y) => y > 0 ? x / y * 100 : null;
+    // Month still running: judge flows (new clients, net sales) against the run rate for the days passed
+    const ist = new Date(Date.now() + 5.5 * 3600e3), live = last.key === istMonthValue();
+    const day = ist.getUTCDate(), dim = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 0)).getUTCDate();
+    const frac = live ? day / dim : 1, daysLeft = dim - day;
     const metrics = c ? [
-      { name:'new clients', p: pct(a.newClients, c.newClients) },
-      { name:'SIP book',    p: pct(a.sipBook, c.sipBook) },
-      { name:'MF net sales', p: pct(a.netSales, c.netSales) }
+      { name:'new clients', p: pct(a.newClients, c.newClients * frac), done: pct(a.newClients, c.newClients), a: fmtCount(a.newClients), c: fmtCount(c.newClients) + ' committed', gap: `${fmtCount(Math.max(0, c.newClients - a.newClients))} clients short` },
+      { name:'SIP book',    p: pct(a.sipBook, c.sipBook), done: pct(a.sipBook, c.sipBook), a: inr(a.sipBook), c: inr(c.sipBook) + ' projected', gap: `${inr(Math.max(0, c.sipBook - a.sipBook))} short` },
+      { name:'MF net sales', p: pct(a.netSales, c.netSales * frac), done: pct(a.netSales, c.netSales), a: signedInr(a.netSales), c: signedInr(c.netSales) + ' projected', gap: `${inr(Math.max(0, c.netSales - a.netSales))} short` }
     ].filter(x => x.p != null) : [];
 
     // Status uses the same three metrics as the focus line, so the two always agree
@@ -2089,17 +2125,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const chip = lo == null ? ['na', 'No commitment to compare'] : lo >= 100 ? ['good', 'On track'] : lo >= 75 ? ['mid', 'Close to commitment'] : ['low', 'Behind commitment'];
 
     const pts = [];
+    if (live) pts.push(`${M} in progress: day ${day} of ${dim}.`);
     if (c){
-      pts.push(`${M} new clients: ${fmtCount(a.newClients)} vs ${fmtCount(c.newClients)} committed${c.newClients > 0 ? ` (${ratioTxt(a.newClients, c.newClients)})` : ''}.`);
-      if (c.sipBook > 0) pts.push(`SIP book: ${inr(a.sipBook)} vs ${inr(c.sipBook)} projected (${ratioTxt(a.sipBook, c.sipBook)}), ${planWord(a.sipBook / c.sipBook * 100)}.`);
+      pts.push(`${M} new clients: ${fmtCount(a.newClients)} vs ${fmtCount(c.newClients)} committed${c.newClients > 0 ? ` (${ratioTxt(a.newClients, c.newClients)} achieved)` : ''}.`);
+      if (c.sipBook > 0) pts.push(`SIP book: ${inr(a.sipBook)} vs ${inr(c.sipBook)} projected (${ratioTxt(a.sipBook, c.sipBook)} achieved), ${planWord(a.sipBook / c.sipBook * 100)}.`);
       const d = a.netSales - c.netSales;
       pts.push(`MF net sales: ${signedInr(a.netSales)} vs ${signedInr(c.netSales)} projected, ${d >= 0 ? 'ahead by' : 'short by'} ${inr(Math.abs(d))}.`);
     } else pts.push(`${M}: ${fmtCount(a.newClients)} new clients, SIP book ${inr(a.sipBook)}, MF net sales ${signedInr(a.netSales)}. No projection covers this month.`);
 
     const q = fyQuarter(last.key), Q = sumRows(m.filter(r => fyQuarter(r.key).key === q.key));
-    if (Q.n && Q.newC > 0) pts.push(`${q.label} so far: ${fmtCount(Q.newA)} of ${fmtCount(Q.newC)} committed new clients (${ratioTxt(Q.newA, Q.newC)}); MF net sales ${signedInr(Q.netA)} vs ${signedInr(Q.netC)} projected.`);
+    if (Q.n && Q.newC > 0) pts.push(`${q.label} so far: ${fmtCount(Q.newA)} of ${fmtCount(Q.newC)} committed new clients (${ratioTxt(Q.newA, Q.newC)} achieved); MF net sales ${signedInr(Q.netA)} vs ${signedInr(Q.netC)} projected.`);
     const fy = fyOf(last.key), F = sumRows(m.filter(r => fyOf(r.key) === fy));
-    if (F.n > Q.n && F.newC > 0) pts.push(`FY${String(fy).slice(2)} to date: ${fmtCount(F.newA)} of ${fmtCount(F.newC)} committed new clients (${ratioTxt(F.newA, F.newC)}).`);
+    if (F.n > Q.n && F.newC > 0) pts.push(`FY${String(fy).slice(2)} to date: ${fmtCount(F.newA)} of ${fmtCount(F.newC)} committed new clients (${ratioTxt(F.newA, F.newC)} achieved).`);
 
     const wc = m.filter(r => r.com && r.com.newClients > 0);
     if (wc.length >= 2){
@@ -2107,6 +2144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const met = wc.filter(r => r.act.newClients >= r.com.newClients).length;
       pts.push(streak >= 2 ? `New-client commitment missed ${streak} months in a row.` : `New-client commitment met in ${met} of ${wc.length} months.`);
     }
+    if (missLine) pts.push(missLine);
     const recent = m.slice(-3), tot = k => recent.reduce((s, r) => s + r.act[k], 0);
     const xs = [['life', tot('life')], ['health', tot('health')], ['PMS', tot('pms')], ['demat', tot('demat')]].filter(x => x[1] > 0);
     pts.push(xs.length ? `Cross-sell, last ${recent.length} month${recent.length > 1 ? 's' : ''}: ${xs.map(x => `${fmtCount(x[1])} ${x[0]}`).join(', ')}.`
@@ -2115,10 +2153,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Focus: the weakest metric below plan; otherwise flag targets set too low; otherwise keep going
     let focus = '';
     const below = metrics.filter(x => x.p < 100).sort((x, y) => x.p - y.p);
-    if (below.length) focus = `Focus next month: ${below[0].name} (${Math.round(below[0].p)}% of plan).`;
-    else if (metrics.some(x => x.p >= 200)) focus = 'All commitments beaten by a wide margin. The targets look too low: ask the partner for a fresh projection.';
-    else if (metrics.length) focus = xs.length ? 'All commitments met this month. Keep the momentum.' : 'All commitments met. Next: start cross-sell conversations.';
-    box.innerHTML = `<h3>Summary <span class="chip ${chip[0]}">${chip[1]}</span></h3><ul>${pts.slice(0, 6).map(p => `<li>${esc(p)}</li>`).join('')}</ul>${focus ? `<div class="focus">${esc(focus)}</div>` : ''}`;
+    if (below.length){ const w = below[0];
+      focus = live ? `Focus this month: ${w.name}. Only ${Math.round(w.done)}% of ${M} target achieved so far, ${daysLeft} day${daysLeft === 1 ? '' : 's'} left.`
+                   : `Focus next month: ${w.name}. Only ${Math.round(w.done)}% of ${M} target achieved.`; }
+    else if (metrics.some(x => x.p >= 200)) focus = live ? 'Well ahead of this month\'s run rate. The targets may be too low.' : 'All commitments beaten by a wide margin. The targets look too low: ask the partner for a fresh projection.';
+    else if (metrics.length) focus = live ? `On track for ${M}. Keep the pace for the remaining ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`
+                                          : (xs.length ? 'All commitments met this month. Keep the momentum.' : 'All commitments met. Next: start cross-sell conversations.');
+    box.innerHTML = `<h3>Summary <span class="chip ${chip[0]}">${chip[1]}</span></h3><ul>${pts.slice(0, 7).map(p => `<li>${esc(p)}</li>`).join('')}</ul>${focus ? `<div class="focus">${esc(focus)}</div>` : ''}`;
   }
 
 
