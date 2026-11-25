@@ -348,6 +348,9 @@
   .ins-filters label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--b700)}
   .ins-filters label.wide select{min-width:280px}
   .ins-filters label[hidden]{display:none}
+  .ins-filters .tf-q{font:inherit;font-size:12px;padding:5px 9px;border:1px solid var(--b200);border-radius:8px 8px 0 0;border-bottom:0;background:var(--b50);color:var(--b900);font-weight:400}
+  .ins-filters .tf-q:focus{outline:none;background:#fff;border-color:var(--b500)}
+  .ins-filters .tf-q + select{border-radius:0 0 8px 8px}
   #teamNote{background:#fff7e6;border:1px solid #f0d9a8;color:#7a5200;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
   .tf-info{font-size:11.5px;color:var(--muted);margin-left:auto;align-self:center}
   #teamNote.info{background:#eef4fb;border-color:#c5d5e8;color:var(--b700)}
@@ -654,10 +657,10 @@
 
 <div id="insightsView" class="ins" hidden>
   <section class="ins-filters" id="insFilters">
-    <label>Cluster<select id="tfCluster"></select></label>
-    <label>Branch<select id="tfBranch"></select></label>
-    <label>RM<select id="tfRm"></select></label>
-    <label class="wide">Partner<select id="tfPartner"></select></label>
+    <label>Cluster<input type="search" class="tf-q" data-for="tfCluster" placeholder="Search cluster"><select id="tfCluster"></select></label>
+    <label>Branch<input type="search" class="tf-q" data-for="tfBranch" placeholder="Search branch"><select id="tfBranch"></select></label>
+    <label>RM<input type="search" class="tf-q" data-for="tfRm" placeholder="Search RM"><select id="tfRm"></select></label>
+    <label class="wide">Partner<input type="search" class="tf-q" data-for="tfPartner" placeholder="Search partner email"><select id="tfPartner"></select></label>
     <button class="btn btn-plain" id="tfRefresh" type="button">↻ Refresh</button>
     <span class="tf-info" id="tfInfo"></span>
   </section>
@@ -2181,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const inScope = () => TEAM.partners.filter(p => (!tf.cluster || p.cluster === tf.cluster) && (!tf.branch || p.branch === tf.branch) && (!tf.rm || p.rm === tf.rm));
   function fillFilters(){
-    const opts = (sel, items, cur, all) => { $(sel).innerHTML = `<option value="">${all}</option>` + items.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join(''); };
+    const opts = (sel, items, cur, all) => { FULL[sel] = { items, all }; drawOpts(sel, cur); };
     const uniq = arr => [...new Set(arr.filter(Boolean))].sort();
     const P = TEAM.partners, R = TEAM.roster || [];
     // Clusters, branches and RMs come from the Hierarchy roster as well as from partners, so empty ones still show
@@ -2200,6 +2203,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = inScope();
     if (tf.partner && !list.some(p => p.email === tf.partner)) tf.partner = '';
     opts('tfPartner', list.map(p => [p.email, `${p.email}  ·  ${p.rm === me() ? 'yours' : 'view only'}`]), tf.partner, `All partners (${list.length})`);
+  }
+  // Each filter keeps its full option list; typing in its search box narrows what's shown
+  const FULL = {};
+  function drawOpts(sel, cur){
+    const f = FULL[sel]; if (!f) return;
+    const q = String((document.querySelector(`.tf-q[data-for="${sel}"]`) || {}).value || '').trim().toLowerCase();
+    const shown = q ? f.items.filter(([v, t]) => (t + ' ' + v).toLowerCase().includes(q) || v === cur) : f.items;
+    const n = q ? f.items.filter(([v, t]) => (t + ' ' + v).toLowerCase().includes(q)).length : 0;
+    $(sel).innerHTML = `<option value="">${q ? `${f.all} · ${n} match${n === 1 ? '' : 'es'}` : f.all}</option>`
+      + shown.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(t)}</option>`).join('');
   }
   function selectionLabel(){
     const parts = [tf.cluster, tf.branch, tf.rm && (TEAM.partners.find(p => p.rm === tf.rm) || {}).rmName].filter(Boolean);
@@ -2277,11 +2290,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function wireFilters(){
     const on = (id, fn) => $(id).addEventListener('change', e => { fn(e.target.value); fillFilters(); applySelection(); });
-    on('tfCluster', v => { tf.cluster = v; tf.branch = ''; tf.rm = ''; tf.partner = ''; });
-    on('tfBranch', v => { tf.branch = v; tf.rm = ''; tf.partner = ''; });
-    on('tfRm', v => { tf.rm = v; tf.partner = ''; });
+    const clearQ = (...ids) => ids.forEach(id => { const q = document.querySelector(`.tf-q[data-for="${id}"]`); if (q) q.value = ''; });
+    on('tfCluster', v => { tf.cluster = v; tf.branch = ''; tf.rm = ''; tf.partner = ''; clearQ('tfBranch', 'tfRm', 'tfPartner'); });
+    on('tfBranch', v => { tf.branch = v; tf.rm = ''; tf.partner = ''; clearQ('tfRm', 'tfPartner'); });
+    on('tfRm', v => { tf.rm = v; tf.partner = ''; clearQ('tfPartner'); });
     on('tfPartner', v => { tf.partner = v; });
     $('tfRefresh').addEventListener('click', () => loadInsights(true));
+    document.querySelectorAll('.tf-q').forEach(inp => {
+      const sel = inp.dataset.for, key = { tfCluster:'cluster', tfBranch:'branch', tfRm:'rm', tfPartner:'partner' }[sel];
+      inp.addEventListener('input', () => {
+        drawOpts(sel, tf[key]);
+        // one match: pick it straight away
+        const opts = [...$(sel).options].filter(o => o.value);
+        if (inp.value.trim() && opts.length === 1 && tf[key] !== opts[0].value){ $(sel).value = opts[0].value; $(sel).dispatchEvent(new Event('change')); }
+      });
+    });
   }
 
   /* ---------- tabs & wiring ---------- */
